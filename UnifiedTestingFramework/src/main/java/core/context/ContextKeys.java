@@ -1,15 +1,31 @@
 package core.context;
 
+import java.time.Instant;
+
+import core.enums.PlatformType;
+
 /**
- * Common context keys shared across all platforms.
+ * Root execution-level context keys.
  *
- * This file should stay SMALL.
+ * These keys are platform-agnostic and
+ * valid throughout the entire test lifecycle.
  */
 public final class ContextKeys {
-	// Key for validation-level context (used by validators)
-	public static final ContextKey<ValidationContext> VALIDATION = ContextKey.of("validation", ValidationContext.class);
+	// Prevent instantiation
+	private ContextKeys() {}
+	
+	// Unique identifier for the test execution
+	public static final ContextKey<String> TEST_ID;
 
-	private ContextKeys() {
-		// TODO Auto-generated constructor stub
+	// Platform under test (API, WEB, MOBILE, AI, ...)
+	public static final ContextKey<PlatformType> PLATFORM;
+
+	//Test start timestamp
+	public static final ContextKey<Instant> START_TIME;
+
+	static {
+		TEST_ID = ContextKey.of("testId", String.class);
+		PLATFORM = ContextKey.of("platform", PlatformType.class);
+		START_TIME = ContextKey.of("startTime", Instant.class);
 	}
 }
