@@ -58,7 +58,15 @@ public final class ContextRegistry {
             return name;
         }
 
-        // Handle empty string
-        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+        // Handle single character
+        char firstChar = name.charAt(0);
+        if (Character.isLowerCase(firstChar)) {
+            return name;
+        }
+
+        // Handle non-empty string
+        String restOfName = name.substring(1);
+        
+        return firstChar + restOfName;
     }
 }
