@@ -1,5 +1,7 @@
 package core.context;
 
+import core.context.registry.ContextRegistry;
+
 /**
  * Root context object for a single test execution.
  *
@@ -22,9 +24,56 @@ public class TestContext {
 		 // Initialize empty context store
 		this.store= new ContextStore();
 	}
-	
-	public <T> void put(ContextKey<T> key, T value) {
-		 // Delegate storage to ContextStore
-		store.put(key, value);
+
+	 /**
+     * Put a context instance into store.
+     */
+		public <T> void put(T context) {
+		// Infer context type
+		Class<T> contextClass = (Class<T>) context.getClass();
+		// Resolve ContextKey from registry
+		ContextKey<T> key = ContextRegistry.keyOf(contextClass);
+		// Store context instance
+		store.put(key, context);
+	}
+
+    /**
+     * Retrieve a context by type.
+     */
+	public <T> T get(Class<T> contextType) {
+		// Resolve ContextKey from registry
+		ContextKey<T> key = ContextRegistry.keyOf(contextType);
+		// Retrieve context instance
+		return store.get(key);
+	}
+
+    /**
+     * Check if a context exists.
+     */
+	public <T> boolean contains(Class<T> contextType) {
+		// Resolve ContextKey from registry
+		ContextKey<T> key = ContextRegistry.keyOf(contextType);
+		// Check existence
+		return store.contains(key);
+	}
+
+	/**
+     * Clear all stored contexts.
+     * Called after test execution finishes.
+     */
+	public void clear() {
+		// Clear all stored contexts
+		store.clear();
+	}
+
+	 /**
+     * Check whether a context exists.
+     *
+     * @param key typed context key
+     * @return true if context exists
+     */
+	public boolean has(ContextKey<?> key) {
+		// Check existence
+		return store.contains(key);
 	}
 }
