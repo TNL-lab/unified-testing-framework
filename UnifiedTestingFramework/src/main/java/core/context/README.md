@@ -1,225 +1,540 @@
-# ✅ STRUCTURE CHUẨN CỦA `core/context
+# Core Context Architecture
 
+## 1. Purpose
+
+`core/context` là **trục kiến trúc trung tâm (execution backbone)** của framework.
+
+Nó đảm bảo:
+
+- Framework **không phụ thuộc tool** (RestAssured, Selenium, Appium, …)
+- Có thể **thay đổi hoặc mở rộng platform** mà không phá vỡ test / validator
+- API / Web / Mobile dùng **chung 1 execution model**
+
+---
+
+## 2. Design Principles
+
+1. **Context ≠ Tool**
+2. **Adapters isolate tools**
+3. **Views are read-only**
+4. **Strongly-typed keys**
+5. **Centralized lifecycle & registry**
+
+---
+
+## 3. Final Structure
+
+```
 core/context
 │
 ├── ContextException.java
+├── ContextNamespace.java
 ├── ContextKey.java
 ├── ContextKeyFactory.java
-├── ContextNamespace.java
 ├── ContextStore.java
 ├── TestContext.java
 │
-├── view
-│ ├── ContextView.java
-│ └── ResponseView.java
-│
-├── adapter
-│ ├── ContextAdapter.java
-│ └── ResponseAdapter.java
+├── lifecycle
+│   └── ContextBootstrap.java
 │
 ├── registry
-│ ├── ContextRegistry.java
-│ └── ContextViewFactory.java
+│   ├── ContextRegistry.java
+│   └── ContextViewFactory.java
 │
-├── lifecycle
-│ └── ContextBootstrap.java
+├── adapter
+│   ├── ContextAdapter.java
+│   └── ResponseAdapter.java
+│
+├── view
+│   └── ContextView.java
 │
 ├── api
-│ ├── ApiContext.java
-│ ├── DefaultApiContext.java
-│ └── ApiContextBuilder.java
+│   ├── ApiContext.java
+│   ├── ApiContextBuilder.java
+│   ├── DefaultApiContext.java
+│   │
+│   ├── adapter
+│   │   ├── ApiResponseAdapter.java
+│   │   ├── RestAssuredAdapter.java
+│   │   └── OkHttpAdapter.java
+│   │
+│   └── view
+│       ├── ApiResponseView.java
+│       ├── RawJsonView.java
+│       └── SnapshotView.java
 │
 ├── web
-│ ├── WebContext.java
-│ ├── DefaultWebContext.java
-│ └── WebContextBuilder.java
+│   ├── WebContext.java
+│   ├── WebContextBuilder.java
+│   ├── DefaultWebContext.java
+│   │
+│   ├── adapter
+│   │   ├── WebDriverAdapter.java
+│   │   ├── SeleniumAdapter.java
+│   │   └── PlaywrightAdapter.java
+│   │
+│   └── view
+│       └── PageView.java
 │
 └── mobile
-├── MobileContext.java
-├── DefaultMobileContext.java
-└── MobileContextBuilder.java
-
-````
-
-👉 **KHÔNG có ValidationContext trong core/context nữa**
+    ├── MobileContext.java
+    ├── MobileContextBuilder.java
+    ├── DefaultMobileContext.java
+    │
+    ├── adapter
+    │   ├── MobileDriverAdapter.java
+    │   └── AppiumAdapter.java
+    │
+    └── view
+        └── ScreenView.java
+```
 
 ---
 
-# 🧠 GIẢI THÍCH THEO TẦNG (RẤT QUAN TRỌNG)
+## 4. Core Flow (High-Level)
 
-## 1️⃣ CORE PRIMITIVES (xương sống)
-
-```text
-ContextKey
-ContextKeyFactory
+```
 ContextNamespace
+    ↓
+ContextKey / ContextKeyFactory
+    ↓
 ContextStore
-ContextException
-````
-
-### Vai trò
-
-- **100% platform-agnostic**
-- Không biết API / Web / Mobile
-- Không biết validation
-- Không biết tool
-
-👉 Đây là **infrastructure layer**, không bao giờ import ngược lên trên.
+    ↓
+TestContext
+    ↓
+ContextBootstrap
+    ↓
+ContextRegistry
+    ↓
+ContextAdapter
+    ↓
+ContextViewFactory
+    ↓
+ContextView
+    ↓
+Validator / Contract / Assertion
+```
 
 ---
 
-## 2️⃣ TestContext (ROOT AGGREGATOR)
+## 5. Layer-by-Layer Execution Order
 
-```text
+---
+
+### 5.1 Namespace & Key Layer (Foundation)
+
+#### Files & Order
+
+```
+ContextNamespace
+    ↓
+ContextKey
+    ↓
+ContextKeyFactory
+```
+
+#### Responsibilities
+
+- `ContextNamespace`
+
+  - Định nghĩa **logical ownership**
+  - Tránh key collision (api._, web._, mobile.\*)
+
+- `ContextKey<T>`
+
+  - Typed key (compile-time safety)
+
+- `ContextKeyFactory`
+
+  - **Single source of truth** cho key naming
+  - Không hard-code string ở nơi khác
+
+👉 **Không có ContextStore nếu chưa có Key**
+
+---
+
+### 5.2 Storage Layer
+
+#### Files & Order
+
+```
+ContextKey
+    ↓
+ContextStore
+```
+
+#### Responsibilities
+
+- `ContextStore`
+
+  - Thread-safe storage
+  - Lưu trữ mọi context instance
+  - Không chứa logic nghiệp vụ
+
+👉 Store **chỉ biết key & value**
+
+---
+
+### 5.3 Execution Context Layer
+
+#### Files & Order
+
+```
+ContextStore
+    ↓
 TestContext
 ```
 
-### Vai trò
+#### Responsibilities
 
-- Wrap `ContextStore`
-- Expose typed getters:
+- `TestContext`
 
-  - `api()`
-  - `web()`
-  - `mobile()`
+  - Central execution object
+  - Mỗi test = 1 TestContext
+  - Expose:
 
-- Là entry point cho test & lifecycle
+    - api()
+    - web()
+    - mobile()
 
-👉 **TestContext không chứa logic**
-👉 Chỉ là **context orchestrator**
-
----
-
-## 3️⃣ VIEW LAYER (READ-ONLY PROJECTION)
-
-```text
-view/
- ├── ContextView
- └── ResponseView
-```
-
-### Vai trò
-
-- Interface cho validator / assertion
-- Không phụ thuộc tool
-- Không mutate state
-
-👉 **View ≠ Adapter**
-👉 View chỉ đọc từ context
+👉 Test **không bao giờ** truy cập Store trực tiếp
 
 ---
 
-## 4️⃣ ADAPTER LAYER (TOOL → CONTEXT)
+### 5.4 Lifecycle Layer
 
-```text
-adapter/
- ├── ContextAdapter
- └── ResponseAdapter
+#### Files & Order
+
+```
+TestContext
+    ↓
+ContextBootstrap
 ```
 
-### Vai trò
+#### Responsibilities
 
-- Bridge giữa tool (RestAssured, Selenium, Appium…) và Context
-- Không expose cho validator
-- Không trả View trực tiếp
+- `ContextBootstrap`
 
-👉 Adapter **ghi vào context**
-👉 View **đọc từ context**
+  - Initialize TestContext
+  - Register adapters & views
+  - Cleanup sau test
+
+👉 Lifecycle tách biệt hoàn toàn khỏi test logic
 
 ---
 
-## 5️⃣ REGISTRY (TRÁNH HARD-CODE)
+### 5.5 Registry Layer
 
-```text
-registry/
- ├── ContextRegistry
- └── ContextViewFactory
+#### Files & Order
+
+```
+ContextBootstrap
+    ↓
+ContextRegistry
+    ↓
+ContextViewFactory
 ```
 
-### Vai trò
+#### Responsibilities
 
-- Centralized registration:
+- `ContextRegistry`
 
-  - Context type
-  - Adapter
-  - View factory
+  - Central wiring:
 
-- Không sinh string
-- Không biết tool cụ thể
+    - context
+    - adapter
+    - view
 
-👉 **ContextRegistry = single source of truth**
+- `ContextViewFactory`
+
+  - Build correct View từ Context + Adapter
+  - Không chứa tool-specific logic
 
 ---
 
-## 6️⃣ LIFECYCLE (BOOTSTRAP / CLEANUP)
+### 5.6 Adapter Layer
 
-```text
-lifecycle/
- └── ContextBootstrap
+#### Files & Order
+
+```
+Raw Tool Object
+    ↓
+ResponseAdapter
+    ↓
+ContextAdapter
 ```
 
-### Vai trò
+#### Responsibilities
 
-- Init context per test
-- Attach adapter
-- Clear store after test
-- Enable / disable theo platform
+- `ResponseAdapter`
 
-👉 Đây là nơi gắn với BaseTest / JUnit / TestNG
+  - Tool → neutral data extraction
+
+- `ContextAdapter`
+
+  - Bind tool output vào Context
+
+👉 Adapter là **điểm duy nhất** biết tool
 
 ---
 
-## 7️⃣ PLATFORM CONTEXTS (STATE ONLY)
+### 5.7 View Layer (Read-only)
 
-### API
+#### Files & Order
 
-```text
-api/
- ├── ApiContext
- ├── DefaultApiContext
- └── ApiContextBuilder
+```
+ContextAdapter
+    ↓
+ContextViewFactory
+    ↓
+ContextView
 ```
 
-### WEB
+#### Responsibilities
 
-```text
-web/
- ├── WebContext
- ├── DefaultWebContext
- └── WebContextBuilder
-```
+- `ContextView`
 
-### MOBILE
+  - Read-only contract
 
-```text
-mobile/
- ├── MobileContext
- ├── DefaultMobileContext
- └── MobileContextBuilder
-```
+- Platform-specific views:
 
-### Vai trò
+  - ApiResponseView
+  - PageView
+  - ScreenView
 
-- Chỉ giữ state
-- Không biết adapter
-- Không biết view
-- Không validate
-
-👉 Context = **state holder thuần**
+👉 Validator **chỉ dùng View**
 
 ---
 
-# ❌ NHỮNG THỨ ĐÃ BỊ LOẠI / DI CHUYỂN
+## 6. Platform-Specific Execution Flow
 
-| Thành phần                            | Trạng thái                    |
-| ------------------------------------- | ----------------------------- |
-| `ValidationContext`                   | ❌ **Loại khỏi core/context** |
-| `ValidationContextKeys`               | ❌ Không tồn tại ở đây        |
-| Hard-code `"context"`                 | ❌ Không cho phép             |
-| Tool-specific logic trong ViewFactory | ❌                            |
+Tất cả platform đều tuân thủ **cùng một execution contract**:
+
+```
+Tool
+  → Tool Adapter
+    → Platform Adapter
+      → Context
+        → View
+          → Validator
+```
+
+### 6.1 API Flow
+
+```
+Response / HTTP Client / Library (RestAssured, OkHttp, Future Client)
+↓
+Tool Adapter
+    - RestAssuredAdapter
+    - OkHttpAdapter
+↓
+ApiResponseAdapter
+↓
+DefaultApiContext
+↓
+ApiResponseView / RawJsonView / SnapshotView
+↓
+Validator / Contract / Assertion
+```
 
 ---
 
-# 🎯 KẾT LUẬN (CHỐT)
+#### Giải thích từng bước
 
-> 👉 **Structure trên là “điểm neo”**
+1.  **HTTP Client / Library**
+
+    - RestAssured/ OkHttp /Retrofit (tương lai) trả về:
+      - tool-specific response object
+
+2.  **Tool Adapter**
+
+        - Bọc (wrap) response tool-specific
+        - Trích xuất:
+            - status code
+            - headers
+            - body
+            - raw payload
+        - Không expose RestAssuredAdapter / OkHttpAdapter ra ngoài
+
+    > ✅ Đây là **điểm duy nhất** biết RestAssured hay OkHttp
+
+3.  **ApiResponseAdapter**
+
+    - Chuyển tool response → API-neutral model
+    - Adapter cấp platform (API)
+    - Chuẩn hóa dữ liệu HTTP:
+      - status
+      - headers
+      - body
+
+4.  **DefaultApiContext**
+
+    - Lưu state của api execution
+    - Giữ raw data (nếu cần debug)
+    - Không chứa logic validate
+
+> Context = **state holder**, không phải service
+
+---
+
+5. **Views**
+   - Read-only view
+   - Expose dữ liệu **đã được chuẩn hóa**
+   - Không cho mutate
+   - Che giấu tool & adapter
+
+---
+
+6. **Validator / Contract / Assertion**
+   - Chỉ làm việc với `PageView`
+   - So sánh:
+   - status code
+   - response body
+   - snapshot
+
+---
+
+### 6.2 Web Platform Flow
+
+```
+
+Browser Automation Tool (Selenium / Playwright)
+↓
+Tool Adapter - SeleniumAdapter - PlaywrightAdapter
+↓
+WebDriverAdapter
+↓
+DefaultWebContext
+↓
+PageView
+↓
+UI Validator / Assertion / Diff
+
+```
+
+#### Giải thích từng bước
+
+1. **Browser Tool**
+
+   - Selenium / Playwright trả về:
+
+     - DOM
+     - Page state
+     - Screenshot
+     - Network info (nếu có)
+
+2. **Tool Adapter**
+
+   - Chuẩn hóa dữ liệu tool
+   - Không expose WebDriver / Playwright API ra ngoài
+
+3. **WebDriverAdapter**
+
+   - Chuyển dữ liệu browser → Web-neutral model
+   - Là adapter “cuối” trước Context
+
+4. **DefaultWebContext**
+
+   - Lưu state của web execution
+   - Không chứa logic assertion
+
+5. **PageView**
+
+   - Read-only view:
+
+     - page.title()
+     - page.dom()
+     - page.screenshot()
+
+6. **Validator**
+
+   - Chỉ làm việc với `PageView`
+   - Không biết Selenium hay Playwright
+
+### 6.3 Mobile Platform Flow
+
+```
+
+Mobile Automation Tool (Appium)
+↓
+Tool Adapter - AppiumAdapter
+↓
+MobileDriverAdapter
+↓
+DefaultMobileContext
+↓
+ScreenView
+↓
+Mobile Validator / Assertion
+
+```
+
+#### Giải thích từng bước
+
+1. **Mobile Tool**
+
+   - Appium trả về:
+
+     - UI tree
+     - Screen source
+     - Screenshot
+     - Device state
+
+2. **AppiumAdapter**
+
+   - Tách framework khỏi Appium API
+   - Normalize mobile raw data
+
+3. **MobileDriverAdapter**
+
+   - Chuyển raw mobile data → neutral representation
+
+4. **DefaultMobileContext**
+
+   - Đại diện cho **1 screen execution**
+   - Không phụ thuộc device / OS
+
+5. **ScreenView**
+
+   - Read-only abstraction:
+
+     - screen.elements()
+     - screen.texts()
+     - screen.snapshot()
+
+6. **Validator**
+
+   - Assert UI behavior
+   - Không phụ thuộc Android / iOS / Appium
+
+---
+
+## 7. Platform Parity Summary
+
+| Layer            | API                  | Web                   | Mobile               |
+| ---------------- | -------------------- | --------------------- | -------------------- |
+| Tool             | RestAssured / OkHttp | Selenium / Playwright | Appium               |
+| Tool Adapter     | RestAssuredAdapter   | SeleniumAdapter       | AppiumAdapter        |
+| Platform Adapter | ApiResponseAdapter   | WebDriverAdapter      | MobileDriverAdapter  |
+| Context          | DefaultApiContext    | DefaultWebContext     | DefaultMobileContext |
+| View             | ApiResponseView      | PageView              | ScreenView           |
+| Validator        | API Validator        | UI Validator          | Mobile Validator     |
+
+## 8. Strict Rules (Must-Follow)
+
+- ❌ Không dùng raw tool trong validator
+- ❌ Không hard-code key string
+- ❌ Không logic trong ContextStore
+- ❌ Không Adapter ngoài adapter layer
+
+## 9. Why This Matters
+
+- ✅ Validator **100% reusable**
+- ✅ Không bị lock tool
+- ✅ Dễ thêm:
+
+  - Cypress
+  - Espresso
+  - WebDriver BiDi
+
+- ✅ Kiến trúc **predictable & auditable**
