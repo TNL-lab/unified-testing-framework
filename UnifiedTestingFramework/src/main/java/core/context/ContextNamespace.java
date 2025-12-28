@@ -6,13 +6,30 @@ package core.context;
  * - Prevents key name collisions
  * - Clearly indicates ownership and scope
  * - Allows future extension (AI, Performance, Security, etc.)
+ * - Has NO runtime meaning
  */
 public enum ContextNamespace {
 
-    ROOT, // Execution-level, platform-agnostic
-    API, // API testing contexts
-    WEB, // Web UI testing contexts
-    MOBILE; // Mobile testing contexts
+    /**
+     * Execution-level, platform-agnostic namespace.
+     * Used for execution-wide context.
+    */
+    ROOT,
+
+    /**
+     * API-related context namespace.
+     */
+    API,
+
+    /**
+     * Web UI-related context namespace.
+     */
+    WEB,
+
+    /**
+     * Mobile-related context namespace.
+     */
+    MOBILE;
 
     /**
      * Convert enum name to lowercase prefix.
