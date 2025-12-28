@@ -128,7 +128,7 @@ Validator / Contract / Assertion
 - `ContextException` → Exception dùng chung cho toàn context layer
 - `ContextNamespace`
 - `ContextKey<T>`
-- `ContextKeyFactory` →
+- `ContextKeyFactory`
 
 #### 5.1 Namespace & Key Layer (Foundation)
 
@@ -172,6 +172,13 @@ ContextKeyFactory
 
 ### ** Phase 1 – Core foundation (bắt buộc, không phụ thuộc tool)**
 
+### ** Phase 2 – Runtime Context Storage**
+
+#### Implement
+
+- `ContextStore`
+- `TestContext`
+
 #### 5.2 Storage Layer
 
 ###### Files & Order
@@ -179,19 +186,21 @@ ContextKeyFactory
 ```
 ContextKey
     ↓
-ContextStore
+ContextStore (internal)
 ```
 
 ###### Responsibilities
 
 - `ContextStore`
 
-  - Thread-safe storage cho tất cả context data
-  - Lưu trữ mọi context instance
+  - Thread-safe storage (lưu trữ ContextKey → value (thread-safe, typed)) cho tất cả context data
   - Không chứa logic nghiệp vụ
-  - Sử dụng `public` (vì TestContext là façade)
   - Không expose map
   - Fail-fast nếu context thiếu
+  - Vì sao ContextStore là final + package-private?
+    - Không cho subclass (tránh phá invariant)
+    - Chỉ TestContext được dùng
+    - Không public API,WEB,MOBILE,... → dễ refactor
 
 👉 Store **chỉ biết key & value**
 
@@ -202,17 +211,19 @@ ContextStore
 ###### Files & Order
 
 ```
-ContextStore
+ContextStore (internal)
     ↓
-TestContext
+TestContext (public)
 ```
 
 ###### Responsibilities
 
 - `TestContext`
 
-  - Facade duy nhất cho test / framework
+  - Là facade duy nhất cho test / framework được dùng
   - Central execution object
+  - Wrapper quanh ContextStore
+  - Fail fast khi context thiếu
   - Mỗi test = 1 TestContext
   - Expose:
     - api()
@@ -222,6 +233,8 @@ TestContext
 👉 Test **không bao giờ** truy cập ContextStore trực tiếp
 
 ---
+
+### ** Phase 2 – Runtime Context Storage**
 
 ### 5.4 Lifecycle Layer
 
