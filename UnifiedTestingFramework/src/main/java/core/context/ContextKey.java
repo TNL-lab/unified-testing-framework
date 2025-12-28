@@ -5,13 +5,23 @@ import java.util.Objects;
 /**
  * Strongly-typed key used to store and retrieve values from ContextStore.
  *
+ *  A ContextKey consists of:
+ * - Logical namespace
+ * - Stable name
+ * - Expected value type
+ *
  * @param <T> type of value associated with this key
  */
 public final class ContextKey<T> {
     /**
-    * Unique full name of the key (e.g. "api.context", "web.context", etc.)
+    * Fully-qualified key name (e.g. "api.context", "web.context", etc.)
     */
     private final String name;
+
+    /**
+     * Logical namespace of the key
+     */
+    private final ContextNamespace namespace;
 
     /**
      * Expected type of the value associated with this key
@@ -21,13 +31,17 @@ public final class ContextKey<T> {
     /**
      * Private constructor to enforce factory usage.
      */
-    public ContextKey(String name, Class<T> type) {
+    public ContextKey(String name, ContextNamespace namespace, Class<T> type) {
+        // Assign key name
         this.name = name;
+        // Assign namespace
+        this.namespace = namespace;
+        // Assign expected value type
         this.type = type;
     }
 
     /**
-     * Get the name of the key.
+     * Get the fully-qualified key name
      */
     public String getName() {
         return name;
@@ -41,13 +55,38 @@ public final class ContextKey<T> {
     }
 
     /**
+     * Get the logical namespace of the key.
+     */
+    public ContextNamespace getNamespace() {
+        return namespace;
+    }
+
+    /**
      * Factory method to create a ContextKey.
      *
-     * @param name fully-qualified key name
-     * @param type expected value type
+     * @param name      fully-qualified key name
+     * @param namespace logical namespace
+     * @param type      expected value type
+     * @return new ContextKey instance
      */
-    public static <T> ContextKey<T> of(String name, Class<T> type) {
-        return new ContextKey<>(name, type);
+    public static <T> ContextKey<T> of(String name, ContextNamespace namespace, Class<T> type) {
+                // Validate key name
+        if (name == null || name.isBlank()) {
+            throw new ContextException("ContextKey name must not be null or blank");
+        }
+
+        // Validate namespace
+        if (namespace == null) {
+            throw new ContextException("ContextKey namespace must not be null");
+        }
+
+        // Validate type
+        if (type == null) {
+            throw new ContextException("ContextKey type must not be null");
+        }
+
+        // Create new immutable ContextKey
+        return new ContextKey<>(name, namespace,type);
     }
     /**
      * Returns a string representation of the ContextKey.
@@ -56,34 +95,40 @@ public final class ContextKey<T> {
      */
     @Override
     public String toString() {
-        return "ContextKey[name='" + name + "', type=" + type.getName() + "]";
+        return "ContextKey[" + namespace.prefix() + ":" + name + "]";
     }
 
     /**
-     * Checks if two ContextKey objects are equal.
+     * ContextKeys are equal if their name and namespace match.
      *
-     * Two ContextKey objects are equal if they have the same name.
+     * Type is intentionally NOT part of equality
+     * to avoid generic type erasure issues.
      *
      * @param o object to compare
      * @return true if the objects are equal, false otherwise
      */
     @Override
     public boolean equals(Object o) {
+        // Same reference check
         if (o == this) return true;
-        if (!(o instanceof ContextKey)) return false;
-        ContextKey<?> other = (ContextKey<?>) o;
-        return Objects.equals(name, other.name);
+
+        // Type check
+        if (!(o instanceof ContextKey<?> other)) return false;
+
+        // Compare name and namespace
+        return Objects.equals(name, other.name)
+                && namespace == other.namespace;
     }
 
     /**
      * Returns a hash code for this ContextKey.
      *
-     * The hash code is based on the name of the key.
+     * The hash code is based on name and namespace of the key.
      *
      * @return the hash code
      */
     @Override
     public int hashCode() {
-        return Objects.hash(name);
+        return Objects.hash(name, namespace);
     }
 }
