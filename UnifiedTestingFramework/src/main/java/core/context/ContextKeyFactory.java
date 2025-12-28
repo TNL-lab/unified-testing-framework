@@ -6,6 +6,7 @@ package core.context;
  * - Prevents string duplication
  * - Avoids typo errors
  * - Enforces naming convention
+ * - Centralize key construction logic
  */
 public final class ContextKeyFactory {
     // Private constructor to prevent instantiation
@@ -25,7 +26,7 @@ public final class ContextKeyFactory {
         String keyName = namespace.prefix() + "." + name;
 
         // Create and return the ContextKey
-        return ContextKey.of(keyName, type);
+        return ContextKey.of(keyName,namespace, type);
     }
 
 
