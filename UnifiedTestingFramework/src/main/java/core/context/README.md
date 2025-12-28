@@ -121,9 +121,18 @@ Validator / Contract / Assertion
 
 ---
 
-### 5.1 Namespace & Key Layer (Foundation)
+### ** Phase 1 – Core foundation (bắt buộc, không phụ thuộc tool)**
 
-#### Files & Order
+#### 5.0 Implement
+
+- `ContextException` → Exception dùng chung cho toàn context layer
+- `ContextNamespace`
+- `ContextKey<T>`
+- `ContextKeyFactory` →
+
+#### 5.1 Namespace & Key Layer (Foundation)
+
+###### Files & Order
 
 ```
 ContextNamespace
@@ -133,29 +142,39 @@ ContextKey
 ContextKeyFactory
 ```
 
-#### Responsibilities
+###### Responsibilities
 
 - `ContextNamespace`
 
-  - Định nghĩa **logical ownership**
+  - Định nghĩa **logical ownership** (ROOT, API, WEB, MOBILE,...)
   - Tránh key collision (api._, web._, mobile.\*)
+  - **Quan trọng**
+    - ❌ Không hard-code `"api"`, `"web"` ở bất kỳ file nào khác
+    - Namespace là **SINGLE OF THE TRUTH**
 
 - `ContextKey<T>`
 
-  - Typed key (compile-time safety)
+  - Typed key (name + namespace + type), compile-time safety
+  - Không còn `Map<String, Object>` bừa bãi
+  - Compile-time hint cho IDE
 
 - `ContextKeyFactory`
-
+  - Factory tạo ContextKey (root / api / web / byNamespace)
+  - Centralized key creation
   - **Single source of truth** cho key naming
-  - Không hard-code string ở nơi khác
+  - Không hard-code string ở nơi khác hay hard-code `"context"`
+  - Không cần `*ContextKeys.java` lặt vặt
+  - Nếu sau này thêm AI sau này **không sửa core**
 
 👉 **Không có ContextStore nếu chưa có Key**
 
 ---
 
-### 5.2 Storage Layer
+### ** Phase 1 – Core foundation (bắt buộc, không phụ thuộc tool)**
 
-#### Files & Order
+#### 5.2 Storage Layer
+
+###### Files & Order
 
 ```
 ContextKey
@@ -163,21 +182,24 @@ ContextKey
 ContextStore
 ```
 
-#### Responsibilities
+###### Responsibilities
 
 - `ContextStore`
 
-  - Thread-safe storage
+  - Thread-safe storage cho tất cả context data
   - Lưu trữ mọi context instance
   - Không chứa logic nghiệp vụ
+  - Sử dụng `public` (vì TestContext là façade)
+  - Không expose map
+  - Fail-fast nếu context thiếu
 
 👉 Store **chỉ biết key & value**
 
 ---
 
-### 5.3 Execution Context Layer
+#### 5.3 Execution Context Layer
 
-#### Files & Order
+###### Files & Order
 
 ```
 ContextStore
@@ -185,19 +207,19 @@ ContextStore
 TestContext
 ```
 
-#### Responsibilities
+###### Responsibilities
 
 - `TestContext`
 
+  - Facade duy nhất cho test / framework
   - Central execution object
   - Mỗi test = 1 TestContext
   - Expose:
-
     - api()
     - web()
     - mobile()
 
-👉 Test **không bao giờ** truy cập Store trực tiếp
+👉 Test **không bao giờ** truy cập ContextStore trực tiếp
 
 ---
 
