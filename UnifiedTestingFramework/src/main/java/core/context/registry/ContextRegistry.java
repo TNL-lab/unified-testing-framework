@@ -123,12 +123,14 @@ public final class ContextRegistry {
         return REGISTRY.containsKey(contextType);
     }
 
-    /**
-     * Clears all registered context types from the registry.
-     * Primarily for testing purposes.
+	/**
+     * Clears all registered context types from the registry (for testing purposes)
      * For test teardown only.
+     *
+     * ⚠ Framework-internal use only.
+     * Intended for test lifecycle cleanup.
      */
-    static void clear() {
+    public static void clear() {
         // Clear the registry
         REGISTRY.clear();
     }
