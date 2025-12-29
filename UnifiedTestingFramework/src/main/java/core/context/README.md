@@ -236,9 +236,17 @@ TestContext (public)
 
 ### ** Phase 2 – Runtime Context Storage**
 
-### 5.4 Lifecycle Layer
+### ** Phase 3 – Lifecycle + Registry**
 
-#### Files & Order
+#### Implement
+
+- `ContextRegistry`
+- `ContextViewFactory`
+- `ContextBootstrap`
+
+#### 5.4 Lifecycle Layer
+
+##### Files & Order
 
 ```
 TestContext
@@ -246,21 +254,22 @@ TestContext
 ContextBootstrap
 ```
 
-#### Responsibilities
+##### Responsibilities
 
 - `ContextBootstrap`
 
-  - Initialize TestContext
-  - Register adapters & views
+  - Orchestrator
+  - Init + register TestContext
+  - Register adapters & views (implement phase 5)
   - Cleanup sau test
 
 👉 Lifecycle tách biệt hoàn toàn khỏi test logic
 
 ---
 
-### 5.5 Registry Layer
+#### 5.5 Registry Layer
 
-#### Files & Order
+##### Files & Order
 
 ```
 ContextBootstrap
@@ -270,22 +279,28 @@ ContextRegistry
 ContextViewFactory
 ```
 
-#### Responsibilities
+##### Responsibilities
 
 - `ContextRegistry`
 
+  - Framework-level registry
+  - Map `ContextClass → ContextNamespace`
+  - Resolve `ContextKey<T>` **từ class**
   - Central wiring:
-
     - context
     - adapter
     - view
 
 - `ContextViewFactory`
 
+  - Map `ContextClass → ContextView`
+  - Resolve `ContextView` **theo Context type**
   - Build correct View từ Context + Adapter
   - Không chứa tool-specific logic
 
 ---
+
+### ** Phase 3 – Lifecycle + Registry**
 
 ### 5.6 Adapter Layer
 
