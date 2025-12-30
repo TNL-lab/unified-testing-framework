@@ -1,5 +1,5 @@
 package core.context.view;
 
-public class ContextView {
+public interface ContextView {
     
 }
