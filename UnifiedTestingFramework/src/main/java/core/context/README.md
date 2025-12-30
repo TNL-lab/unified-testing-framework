@@ -302,9 +302,17 @@ ContextViewFactory
 
 ### ** Phase 3 – Lifecycle + Registry**
 
-### 5.6 Adapter Layer
+### ** Phase 4 – Adapter & View Contracts (Platform-agnostic)**
 
-#### Files & Order
+#### Implement
+
+- `ContextAdapter`
+- `ResponseAdapter`
+- `ContextView`
+
+#### 5.6 Adapter Layer
+
+##### Files & Order
 
 ```
 Raw Tool Object
@@ -314,23 +322,27 @@ ResponseAdapter
 ContextAdapter
 ```
 
-#### Responsibilities
+##### Responsibilities
 
 - `ResponseAdapter`
 
   - Tool → neutral data extraction
+  - Mở rộng adapter và normalize cho **response-like objects**: status, headers, and body
+  - Contract để normalize cho status, headers, and body bất kể platform (API, Web, Mobile)
+  - Default `adapt()` trả về `ResponseViewWrapper`
 
 - `ContextAdapter`
-
-  - Bind tool output vào Context
+  - Provide a standardized way to extract data from any context
+  - Contract để convert raw tool-specific responses → ContextView.
+  - **Platform-agnostic**, chưa biết API/Web/Mobile.
 
 👉 Adapter là **điểm duy nhất** biết tool
 
 ---
 
-### 5.7 View Layer (Read-only)
+#### 5.7 View Layer (Read-only)
 
-#### Files & Order
+##### Files & Order
 
 ```
 ContextAdapter
@@ -340,11 +352,13 @@ ContextViewFactory
 ContextView
 ```
 
-#### Responsibilities
+##### Responsibilities
 
 - `ContextView`
 
-  - Read-only contract
+  - Immutable / read-only views
+  - Expose data in a test-friendly, assertable format
+  - Chưa biết tool, platform, chỉ cung cấp contract.
 
 - Platform-specific views:
 
@@ -355,6 +369,8 @@ ContextView
 👉 Validator **chỉ dùng View**
 
 ---
+
+### ** Phase 4 – Adapter & View Contracts (Platform-agnostic)**
 
 ## 6. Platform-Specific Execution Flow
 
