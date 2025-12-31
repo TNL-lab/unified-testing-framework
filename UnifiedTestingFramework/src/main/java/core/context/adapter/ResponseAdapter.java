@@ -1,38 +1,40 @@
 package core.context.adapter;
 
-import core.context.view.ContextView;
+import java.util.Map;
 
 /**
  * Adapter interface for response-like objects.
  *
- * Provides a contract to normalize status, headers, and body
- * regardless of platform (API, Web, Mobile).
+ * Defines a contract to normalize status, headers, and body regardless of the underlying platform (API, Web, Mobile).
+ *
+ * This interface represents the adapter boundary between external tools (RestAssured, OkHttp, Selenium, etc.) and framework-level views.
  */
-public interface ResponseAdapter<T> extends ContextAdapter<T> {
+
+public interface ResponseAdapter extends ContextAdapter {
     /**
      * Get HTTP or framework status code.
      */
-    int statusCode(T rawResponse);
+    int statusCode();
 
     /**
      * Get a HTTP header or metadata by name.
      */
-    String header(T rawResponse, String headerName);
+    String header();
 
     /**
      * Get response body as string.
      */
-    String body(T rawResponse);
+    String body();
 
     /**
-     * Default implementation that wraps the raw response into a generic ContextView.
-     *
-     * @param rawResponse the raw response from the tool (API response, Web element, etc.)
-     * @return a ContextView instance wrapping the raw response
+     * Get response headers as a normalized map.
      */
-    @Override
-    default ContextView adapt(T rawResponse) {
-        // Default implementation could wrap response into a generic ContextView
-        return new ResponseViewWrapper<>(this, rawResponse);
-    }
+    Map<String, String> headers();
+
+    /**
+     * Access underlying raw response object (optional).
+     *
+     * Used only by advanced integrations or debugging.
+     */
+    Object raw();
 }
