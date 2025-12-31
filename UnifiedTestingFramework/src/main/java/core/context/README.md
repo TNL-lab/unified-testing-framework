@@ -324,17 +324,17 @@ ContextAdapter
 
 ##### Responsibilities
 
+- `ContextAdapter`
+
+  - Marker interface for all context adapters.
+  - Bridge external tools to framework
+
 - `ResponseAdapter`
 
-  - Tool → neutral data extraction
+  - Adapter chỉ expose data
+  - Adapter interface for response-like objects
   - Mở rộng adapter và normalize cho **response-like objects**: status, headers, and body
-  - Contract để normalize cho status, headers, and body bất kể platform (API, Web, Mobile)
-  - Default `adapt()` trả về `ResponseViewWrapper`
-
-- `ContextAdapter`
-  - Provide a standardized way to extract data from any context
-  - Contract để convert raw tool-specific responses → ContextView.
-  - **Platform-agnostic**, chưa biết API/Web/Mobile.
+  - Represents the adapter boundary between external tools (RestAssured, OkHttp, Selenium, etc.) and framework-level views.
 
 👉 Adapter là **điểm duy nhất** biết tool
 
@@ -359,6 +359,8 @@ ContextView
   - Immutable / read-only views
   - Expose data in a test-friendly, assertable format
   - Chưa biết tool, platform, chỉ cung cấp contract.
+  - View KHÔNG biết Adapter nào
+  - Chỉ là abstraction cho test đọc dữ liệu
 
 - Platform-specific views:
 
