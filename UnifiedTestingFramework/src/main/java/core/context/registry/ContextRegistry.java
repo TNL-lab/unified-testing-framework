@@ -15,7 +15,7 @@ import core.context.ContextNamespace;
  * - Register Context class with logical namespace
  * - Map context type -> namespace
  * - Generate ContextKey from Context class without hard-coded strings
- *
+ * - API context types should register via ApiContextModule
  */
 public final class ContextRegistry {
 
@@ -67,7 +67,7 @@ public final class ContextRegistry {
     }
 
     /**
-     * Resolve a ContextKey for the given context type. 
+     * Resolve a ContextKey for the given context type.
      * E.g. ApiContext.class -> ContextKey< ApiContext >
      *
      * @param contextType the context type for which to generate the ContextKey
