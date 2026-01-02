@@ -1,6 +1,7 @@
 package core.context.lifecycle;
 
 import core.context.TestContext;
+import core.context.api.ApiContextModule;
 import core.context.registry.ContextRegistry;
 import core.context.registry.ContextViewFactory;
 /**
@@ -23,13 +24,10 @@ public final class ContextBootstrap {
      */
     public static TestContext init() {
         TestContext context = new TestContext();
-        /*
-         * NOTE:
-         * Concrete Context types & Views
-         * will be registered by higher layer (Phase 5+).
-         *
-         * Phase 3 only provides mechanism.
-         */
+
+        // Register API context types & views
+        ApiContextModule.registerContextsAndViews();
+
         return context;
     }
 
