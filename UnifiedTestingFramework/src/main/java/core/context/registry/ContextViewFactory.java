@@ -13,6 +13,7 @@ import core.context.view.ContextView;
  * Responsibilities:
  * - Register context type -> view converter function
  * - Create ContextView instances
+ * - API ContextView should register via ApiContextModule
  *
  */
 public final class ContextViewFactory {
