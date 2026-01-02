@@ -9,12 +9,33 @@ import java.util.concurrent.ConcurrentHashMap;
  * Responsibilities:
  * - Stores values by ContextKey
  * - Enforces type safety at retrieval
- * - Is cleared after each test execution
+ * - Be cleared after each test execution
  * - Be thread-safe for parallel test execution
+ * - Enforce integrity protection without semantic constraints
  */
 final class ContextStore {
     // Internal concurrent map storing context values
     private final Map<ContextKey<?>, Object> store = new ConcurrentHashMap<>();
+
+    /**
+     * Requires a non-null value with the given error message.
+     *
+     * Throws ContextException if the value is null.
+     *
+     * @param value the value to require
+     * @param errorMessage the error message to use if the value is null
+     * @return the value if not null
+     * @throws ContextException if the value is null
+     */
+    private <T> T requireValue(T value, String errorMessage) {
+        // Fail fast if missing
+        if (value == null) {
+            throw new ContextException(errorMessage);
+        }
+
+        // Return the value
+        return value;
+    }
 
     /**
      * Put a value into the context store.
@@ -25,9 +46,7 @@ final class ContextStore {
      */
     <T> void put(ContextKey<T> key, T value) {
         // Validate key to avoid silent corruption
-        if (key == null) {
-            throw new ContextException("ContextKey must not be null");
-        }
+        key = requireValue(key, "ContextKey must not be null");
 
         // Put the value into the store
         store.put(key, value);
@@ -44,16 +63,14 @@ final class ContextStore {
      @SuppressWarnings("unchecked")
     <T> T get(ContextKey<T> key) {
         // Validate key to avoid silent corruption
-        if (key == null) {
-            throw new ContextException("ContextKey must not be null");
-        }
+        key = requireValue(key, "ContextKey must not be null");
 
         // Retrieve the raw value from the store
         Object value = store.get(key);
 
         // Enforce type safety
         if (value == null) {
-            throw new ContextException("Context not found:" + key.getName());
+            return null;
         }
 
         // Check if the value matches the expected type
