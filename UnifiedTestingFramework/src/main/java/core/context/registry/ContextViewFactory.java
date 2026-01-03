@@ -2,7 +2,7 @@ package core.context.registry;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 import core.context.ContextException;
 import core.context.view.ContextView;
@@ -11,57 +11,65 @@ import core.context.view.ContextView;
  * Factory to resolve ContextView by Context type.
  *
  * Responsibilities:
- * - Register context type -> view converter function
+ * - Register context type -> view factory function
  * - Create ContextView instances
- * - API ContextView should register via ApiContextModule
+ * - API / Web / Mobile modules register via their Module class
  *
  */
 public final class ContextViewFactory {
-    // Internal registry mapping a context class to its view supplier.
-    private static final Map<Class<?>, Supplier<? extends ContextView>> VIEW_REGISTRY = new ConcurrentHashMap<>();
+    // Internal registry maps a context class to a factory function that creates its view
+    private static final Map<Class<?>, Function<Object, ? extends ContextView>> VIEW_REGISTRY = new ConcurrentHashMap<>();
 
     // Private constructor to prevent instantiation
     private ContextViewFactory() {}
 
+
     /**
-     * Registers a context type with its corresponding view supplier.
+     * Registers a context class with its corresponding view factory.
      *
-     * @param contextType the context type to register
-     * @param viewSupplier the supplier function to create ContextView instances
+     * @param contextType  the class of the context
+     * @param viewFactory  the factory function that creates a ContextView instance from the given context type
+     * @throws ContextException if the context type or view factory function is null
      */
-    public static void register(Class<?> contextType, Supplier<? extends ContextView> viewSupplier) {
+
+    public static <V extends ContextView> void register(Class<?> contextType, Function<Object, V> viewFactory) {
         // Validate inputs
         if (contextType == null) {
             throw new ContextException("Context type must not be null");
         }
 
-        if (viewSupplier == null) {
-            throw new ContextException("Creator function must not be null");
+        if (viewFactory == null) {
+            throw new ContextException("View factory function must not be null");
         }
 
         // Store the mapping in the registry
-        VIEW_REGISTRY.put(contextType, viewSupplier);
+        VIEW_REGISTRY.put(contextType, viewFactory);
     }
 
 
     /**
-     * Creates a ContextView instance for the given context type.
+     * Creates a ContextView instance from a context instance.
      *
-     * @param contextType the context type for which to create the view
-     * @return a new ContextView instance
-     * @throws ContextException if no view is registered
+     * @param context    the context instance to create a view from
+     * @return the created ContextView instance
+     * @throws ContextException if no view is registered for this context type
      */
-    public static ContextView createView(Class<?> contextType) {
-        // Lookup creator function from registry
-        Supplier<? extends ContextView> supplier = VIEW_REGISTRY.get(contextType);
-
-        // If no creator found, throw exception
-        if (supplier == null) {
-            throw new ContextException("No view registered for context type: " + contextType.getName());
+    @SuppressWarnings("unchecked")
+    public static <V extends ContextView> V createView(Object context) {
+        if (context == null ) {
+             throw new ContextException("Context instance must not be null");
         }
 
-      // Create and return the ContextView
-        return supplier.get();
+        // Lookup factory function based on context class
+        Function<Object, ? extends ContextView> func = VIEW_REGISTRY.get(context.getClass());
+
+        // If no creator found, throw exception
+        if (func == null) {
+            throw new ContextException("No view registered for context: " + context.getClass());
+        }
+
+        //Apply factory function to context instance to create view
+        return (V) func.apply(context);
     }
 
     /**
