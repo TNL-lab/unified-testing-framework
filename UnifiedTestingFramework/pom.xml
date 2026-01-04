@@ -47,10 +47,17 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!--JUnit 5: https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
+		<!--JUnit 5 -->
+		<!--JUnit Jupiter API and Engine: https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-api</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!--JUnit Platform Suite API: https://mvnrepository.com/artifact/org.junit.platform/junit-platform-suite-api -->
+		<dependency>
+			<groupId>org.junit.platform</groupId>
+			<artifactId>junit-platform-suite-api</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<!-- Optionally: parameterized tests support -->
@@ -58,6 +65,15 @@
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-params</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+
+		<!--Mockito version 5.10.0 for JUnit 5: https://mvnrepository.com/artifact/org.mockito/mockito-junit-jupiter -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>5.10.0</version>
 			<scope>test</scope>
 		</dependency>
 		<!--TEST RUNNER -->
