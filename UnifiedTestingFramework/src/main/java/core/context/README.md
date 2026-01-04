@@ -61,7 +61,11 @@ core/context
 │   └── view
 │       ├── ApiResponseView.java
 │       ├── RawJsonView.java
-│       └── SnapshotView.java
+│       ├── SnapshotView.java
+│       └── impl
+│       	  ├── DefaultApiResponseView.java
+│       	  ├── DefaultRawJsonView.java
+│	      	  └── DefaultSnapshotView.java
 │
 ├── web
 │   ├── WebContext.java
@@ -387,80 +391,278 @@ Tool
           → Validator
 ```
 
-### 6.1 API Flow
+### ** Phase 5 – API Context Implementation**
+
+#### Implement
+
+- `ApiResponseView`
+- `RawJsonView` / `SnapshotView`
+- `DefaultApiResponseView`
+- `DefaultRawJsonView / DefaultSnapshotView`
+- `ApiResponseAdapter`
+- `ApiContext`
+- `RestAssuredAdapter` / `OkHttpAdapter`
+- `DefaultApiContext`
+- `ApiContextBuilder`
+- `ApiContextModule`
+
+#### 6.1 API Flow
 
 ```
-Response / HTTP Client / Library (RestAssured, OkHttp, Future Client)
-↓
-Tool Adapter
+Response / HTTP Client / Library (RestAssured, OkHttp,etc)   		– Gửi request và trả về raw, tool-specific response
+    ↓
+Tool Adapter                                                 		– Biết tool, trích xuất status / headers / body
     - RestAssuredAdapter
     - OkHttpAdapter
-↓
-ApiResponseAdapter
-↓
-DefaultApiContext
-↓
-ApiResponseView / RawJsonView / SnapshotView
-↓
-Validator / Contract / Assertion
+    ↓
+ApiResponseAdapter                                           		– Chuẩn hoá response, xoá phụ thuộc tool, bridge sang API-neutral layer
+    ↓
+ApiContext                                                   		– Contract/boundary, API duy nhất test được phép dùng
+    ↓
+DefaultApiContext                                            		– Runtime implementation, giữ response + adapter data
+    ↓
+ApiContextBuilder                                            		– Wiring & configuration, build đúng ApiContext trước khi test chạy
+    ↓
+ApiContextModule                                             		– Central wiring, register context & default views vào ContextRegistry / ContextViewFactory
+    ↓
+ApiResponseView / RawJsonView / SnapshotView                 		– Read-only, immutable, assert-friendly interface
+    ↓
+DefaultApiResponseView / DefaultRawJsonView / DefaultSnapshotView	– Implementation của interface, nhận context instance, expose dữ liệu API chuẩn
+    ↓
+Validator / Contract / Assertion                             		– Test layer, chỉ assert trên view, không phụ thuộc tool/context internals
 ```
+
+### ** Phase 5 – API Context Core Implementation**
 
 ---
 
-#### Giải thích từng bước
+##### 6.1.1 API Contracts & View Layer
 
-1.  **HTTP Client / Library**
+###### Files & Order
 
-    - RestAssured/ OkHttp /Retrofit (tương lai) trả về:
-      - tool-specific response object
+```
+ApiResponseView
+    ↓
+RawJsonView / SnapshotView
+    ↓
+DefaultApiResponseView
+    ↓
+DefaultRawJsonView / DefaultSnapshotView
+    ↓
+ApiResponseAdapter
+```
 
-2.  **Tool Adapter**
+###### Responsibilities
 
-        - Bọc (wrap) response tool-specific
-        - Trích xuất:
-            - status code
-            - headers
-            - body
-            - raw payload
-        - Không expose RestAssuredAdapter / OkHttpAdapter ra ngoài
+- `ApiResponseView`
 
-    > ✅ Đây là **điểm duy nhất** biết RestAssured hay OkHttp
+  - Assertion-friendly interface
+  - Immutable / read-only view cho API response(status code, body,etc)
+  - Che giấu tool & adapter
+  - Tách khỏi HTTP client
+  - Không phụ thuộc DefaultApiContext hoặc DefaultView, chỉ định contract thuần (interface)
 
-3.  **ApiResponseAdapter**
+- `RawJsonView / SnapshotView`
 
-    - Chuyển tool response → API-neutral model
-    - Adapter cấp platform (API)
-    - Chuẩn hóa dữ liệu HTTP:
-      - status
-      - headers
-      - body
+  - Các view chuyên biệt, raw JSON access / snapshot
+  - Extend từ ApiResponseView, vẫn immutable / read-only
 
-4.  **DefaultApiContext**
+- `DefaultApiResponseView`
 
-    - Lưu state của api execution
-    - Giữ raw data (nếu cần debug)
-    - Không chứa logic validate
+  - Default read-only implementation of ApiResponseView
+  - Provide immutable, assertion-friendly access to HTTP response data
+  - Expose status code, body, and success flag
+  - Serve as the default concrete view for DefaultApiContext
+
+- `DefaultRawJsonView / DefaultSnapshotView	`
+
+  - Mở rộng từ DefaultApiResponseView, default read-only implementation of RawJsonView / SnapshotView
+  - Immutable / read-only / assertion-friendly / specialized methods
+
+---
+
+##### 6.1.2 API Tool-Specific Adapters
+
+###### Files & Order
+
+```
+ApiResponseAdapter
+    ↓
+RestAssuredAdapter / OkHttpAdapter
+    ↓
+ApiContext
+```
+
+###### Responsibilities
+
+- `ApiResponseAdapter`
+
+  - Used to handle API responses
+  - Tách biệt API context from HTTP client libraries
+  - Chuẩn hóa API response (headers, status code, body, etc) từ tool-specific → ApiContext neutral
+  - Không chứa test/assert logic
+  - Bridge giữa tool-specific response (RestAssured, OkHttp, etc.) → DefaultApiContext
+
+- `RestAssuredAdapter / OkHttpAdapter`
+
+  - Tool-specific adapter
+  - Platform-specific logic (RestAssured, OkHttp)
+  - Converts tool-specific response into ApiResponseAdapter
+  - Không chứa test/assert logic
+  - Không expose RestAssuredAdapter / OkHttpAdapter ra ngoài
+  - IOException handled at edge
+
+> ✅ Đây là **điểm duy nhất** biết RestAssured hay OkHttp
+
+##### 6.1.3 API Context Implementation
+
+###### Files & Order
+
+```
+ApiContext
+    ↓
+DefaultApiContext
+    ↓
+ApiContextBuilder
+```
+
+###### Responsibilities
+
+- `ApiContext`
+
+  - Interface / Contract to API context (no implementation logic)
+  - Represents an API execution context in a test
+  - Exposes API-related data in a normalized way
+  - Does NOT know any HTTP client (RestAssured / OkHttp)
+  - Does NOT know lifecycle or storage
+
+- `DefaultApiContext`
+
+  - Implement lưu response từ adapter
+  - Expose API context cho test
+  - Giữ raw data (nếu cần debug)
+  - Không chứa logic validate
+  - Binds ResponseAdapter to ApiContext
+  - Execute HTTP call nằm trong Builder / Adapter, DefaultApiContext chỉ hold response và expose data.
 
 > Context = **state holder**, không phải service
 
----
+- `ApiContextBuilder`
 
-5. **Views**
-   - Read-only view
-   - Expose dữ liệu **đã được chuẩn hóa**
-   - Không cho mutate
-   - Che giấu tool & adapter
-
----
-
-6. **Validator / Contract / Assertion**
-   - Chỉ làm việc với `PageView`
-   - So sánh:
-   - status code
-   - response body
-   - snapshot
+  - Pattern builder
+  - Builder builds DefaultApiContext + sets adapter, but does not execute assertions
+  - Construct ApiContext in a controlled way (DefaultApiContext instance) linh hoạt (chọn adapter, view)
+  - Create adapter from tools
+  - Validate required components
+  - Execute HTTP requests
+  - Access ContextRegistry or lifecycle
 
 ---
+
+### ** Phase 5 – API Context Core Implementation**
+
+### ** Phase 5 – API Context Wiring Implementation**
+
+##### 6.1.4 API Wiring Implement
+
+###### Files & Order
+
+```
+ContextStore (internal)
+    ↓
+TestContext (public)
+    ↓
+ContextBootstrap
+    ↓
+ApiContextModule
+    ↓
+ContextRegistry
+    ↓
+    ↓ ContextAdapter
+    ↓
+ContextViewFactory
+```
+
+###### Responsibilities
+
+- `ContextRegistry`
+
+  - API context types should register via ApiContextModule
+
+- `ContextViewFactory`
+
+  - Register context type -> view factory function (IMPORTANT FIX)
+
+- `ApiContextModule`
+
+  - Wiring API contexts and views into the core framework (Registry + ViewFactory)
+  - Register ApiContext into ContextRegistry
+  - register ApiResponseView into ContextViewFactory
+  - Central place to wire all API components
+  - Easy to maintain
+
+- `TestContext`
+
+  - Extend TestContext with overloaded access methods and fast-fail validation
+
+- `ContextStore`
+
+  - Enforce integrity protection without semantic constraints
+
+---
+
+### ** Phase 5 – API Context Wiring Implementation**
+
+##### 6.1.5 Full API Test Runtime Flow
+
+```
+[Test Case]
+│
+│ (1) REQUEST & RESPONSE NORMALIZATION
+│
+↓
+Response / HTTP Client / Library (RestAssured, OkHttp, etc)     – send HTTP request, get raw, tool-specific response
+↓
+Tool Adapter                                                    – extract status / headers / body, normalize tool-specific response
+    - RestAssuredAdapter
+    - OkHttpAdapter
+↓
+ApiResponseAdapter                                               – normalize response, remove tool dependency, bridge to API-neutral layer
+│
+│ (2) CONTEXT CREATION & LIFECYCLE MANAGEMENT
+│
+↓
+ApiContextBuilder                                                – assemble ApiContext (choose adapter, set response)
+↓
+DefaultApiContext                                                – concrete runtime implementation, hold response and adapter state
+↓
+ApiContext (contract)                                            – interface, exposes normalized API data, no tool knowledge
+↓
+ContextNamespace                                                 – categorize context type (API / Web / Mobile)
+↓
+ContextKey / ContextKeyFactory                                   – manage unique keys for context storage
+↓
+ContextStore                                                     – hold runtime context data
+↓
+TestContext                                                      – lifecycle-aware container for current test
+│
+│ (3) VIEW RESOLUTION & ASSERTION
+│
+↓
+ApiContextModule (register contexts & views)                      – setup wiring, optional to show
+↓
+ContextRegistry                                                   – resolve context types
+↓
+ContextViewFactory                                                – create views from context (default + specialized)
+↓
+ApiResponseView / RawJsonView / SnapshotView                      – read-only, immutable, assertion-friendly interface (contract)
+↓
+DefaultApiResponseView / DefaultRawJsonView / DefaultSnapshotView – default concrete implementations for each view
+↓
+Validator / Contract / Assertion                                  – test layer, asserts only on views, context/tool agnostic
+```
+
+### ** Phase 5 – API Context Implementation**
 
 ### 6.2 Web Platform Flow
 
@@ -606,3 +808,7 @@ Mobile Validator / Assertion
   - WebDriver BiDi
 
 - ✅ Kiến trúc **predictable & auditable**
+
+```
+
+```
