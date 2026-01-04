@@ -2,6 +2,8 @@ package core.context;
 
 import java.util.Objects;
 
+import core.context.support.ContextPreconditions;
+
 /**
  * Strongly-typed key used to store and retrieve values from ContextStore.
  *
@@ -75,15 +77,11 @@ public final class ContextKey<T> {
             throw new ContextException("ContextKey name must not be null or blank");
         }
 
-        // Validate namespace
-        if (namespace == null) {
-            throw new ContextException("ContextKey namespace must not be null");
-        }
+        // Fail fast if namespace is null
+        ContextPreconditions.requireNonNull(namespace, "ContextKey namespace must not be null");
 
-        // Validate type
-        if (type == null) {
-            throw new ContextException("ContextKey type must not be null");
-        }
+        // Fail fast if type is null
+        ContextPreconditions.requireNonNull(type, "ContextKey type must not be null");
 
         // Create new immutable ContextKey
         return new ContextKey<>(name, namespace,type);

@@ -3,10 +3,10 @@ package core.context.registry;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import core.context.ContextException;
 import core.context.ContextKey;
 import core.context.ContextKeyFactory;
 import core.context.ContextNamespace;
+import core.context.support.ContextPreconditions;
 
 /**
  * Central registry for all Context types in the framework.
@@ -34,14 +34,11 @@ public final class ContextRegistry {
      * @param contextNamespace the namespace associated with the context type
      */
     public static void register(Class<?> contextType, ContextNamespace contextNamespace) {
-        // Validate inputs
-        if (contextType == null) {
-            throw new ContextException("Context type must not be null");
-        }
+        // Fail fast if context type is null
+        ContextPreconditions.requireNonNull(contextType, "Context type must not be null");
 
-        if (contextNamespace == null) {
-            throw new ContextException("Context namespace must not be null");
-        }
+        // Fail fast if namespace is null
+        ContextPreconditions.requireNonNull(contextNamespace, "Context namespace must not be null");
 
         // Store the mapping in the registry
         REGISTRY.put(contextType, contextNamespace);
@@ -59,9 +56,8 @@ public final class ContextRegistry {
         ContextNamespace namespace = REGISTRY.get(contextType);
 
         // Error if not registered
-        if (namespace == null) {
-            throw new ContextException("Unregistered context type: " + contextType.getName());
-        }
+        ContextPreconditions.requireNonNull(namespace, "Unregistered context type: " + contextType.getName());
+
         // Return the namespace
         return namespace;
     }

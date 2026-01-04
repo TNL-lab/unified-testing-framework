@@ -53,8 +53,25 @@ public class DefaultApiResponseViewTest {
      */
     @Test
     void constructor_shouldFail_whenResponseAdapterMissing() {
+    // OkHttp Request
+        Request request = new Request.Builder()
+                .url("https://example.com/test")
+                .build();
+
+        // OkHttp Response Body
+        ResponseBody body = ResponseBody.create(
+            "{\"success\":true}",
+            MediaType.parse("application/json"));
+
         // HTTP Client (OkHttp) → raw tool-specific response
-        Response response = null;
+        Response response = new Response.Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .code(201)
+                .message("Created")
+                .body(body)
+                .addHeader("X-Source", "okhttp")
+                .build();
 
         // Raw Tool Adapter (OkHttpAdapter) → ApiContext-neutral ApiResponseAdapter
         ResponseAdapter adapter = OkHttpAdapter.adapt(response);

@@ -1,7 +1,7 @@
 package core.context.api;
 
-import core.context.ContextException;
 import core.context.adapter.ResponseAdapter;
+import core.context.support.ContextPreconditions;
 
 /**
  * Default implementation of ApiContext.
@@ -26,9 +26,7 @@ public class DefaultApiContext implements ApiContext {
      */
     public DefaultApiContext(ResponseAdapter responseAdapter) {
         // Fail fast if context is misconfigured
-        if (responseAdapter == null) {
-            throw new ContextException("Response Adapter must not be null");
-        }
+        ContextPreconditions.requireNonNull(responseAdapter, "Response Adapter must not be null");
 
         // Store response adapter
         this.responseAdapter = responseAdapter;

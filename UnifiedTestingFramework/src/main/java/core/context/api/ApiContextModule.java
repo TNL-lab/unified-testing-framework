@@ -3,7 +3,6 @@ package core.context.api;
 import java.util.Map;
 import java.util.function.Function;
 
-import core.context.ContextException;
 import core.context.ContextNamespace;
 import core.context.api.view.RawJsonView;
 import core.context.api.view.SnapshotView;
@@ -12,6 +11,7 @@ import core.context.api.view.impl.DefaultRawJsonView;
 import core.context.api.view.impl.DefaultSnapshotView;
 import core.context.registry.ContextRegistry;
 import core.context.registry.ContextViewFactory;
+import core.context.support.ContextPreconditions;
 import core.context.view.ContextView;
 
 /**
@@ -85,9 +85,7 @@ public final class ApiContextModule {
                 Function<DefaultApiContext, ? extends ContextView> factory = mapping.get(viewType);
 
                 // Fast fail if view type is not supported
-                if (factory == null) {
-                    throw new ContextException("Unsupported specialized API view type: " + viewType.getName());
-                }
+                ContextPreconditions.requireNonNull(factory, "Unsupported specialized API view type: " + viewType.getName());
 
                 // Apply the specialized API view factory
                 return factory.apply((DefaultApiContext) ctx);

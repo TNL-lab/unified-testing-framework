@@ -3,6 +3,8 @@ package core.context;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import core.context.support.ContextPreconditions;
+
 /**
  * Internal Thread-safe storage for all context data.
  *
@@ -18,26 +20,6 @@ final class ContextStore {
     private final Map<ContextKey<?>, Object> store = new ConcurrentHashMap<>();
 
     /**
-     * Requires a non-null value with the given error message.
-     *
-     * Throws ContextException if the value is null.
-     *
-     * @param value the value to require
-     * @param errorMessage the error message to use if the value is null
-     * @return the value if not null
-     * @throws ContextException if the value is null
-     */
-    private <T> T requireValue(T value, String errorMessage) {
-        // Fail fast if missing
-        if (value == null) {
-            throw new ContextException(errorMessage);
-        }
-
-        // Return the value
-        return value;
-    }
-
-    /**
      * Put a value into the context store.
      *
      * @param key   The context key
@@ -46,7 +28,8 @@ final class ContextStore {
      */
     <T> void put(ContextKey<T> key, T value) {
         // Validate key to avoid silent corruption
-        key = requireValue(key, "ContextKey must not be null");
+        // Fail fast if key is null
+        ContextPreconditions.requireNonNull(key, "ContextKey must not be null");
 
         // Put the value into the store
         store.put(key, value);
@@ -63,7 +46,8 @@ final class ContextStore {
      @SuppressWarnings("unchecked")
     <T> T get(ContextKey<T> key) {
         // Validate key to avoid silent corruption
-        key = requireValue(key, "ContextKey must not be null");
+        // Fail fast if key is null
+        ContextPreconditions.requireNonNull(key, "ContextKey must not be null");
 
         // Retrieve the raw value from the store
         Object value = store.get(key);

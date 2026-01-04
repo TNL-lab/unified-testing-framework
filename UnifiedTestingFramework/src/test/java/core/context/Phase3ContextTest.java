@@ -6,6 +6,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import core.context.api.view.impl.DefaultApiResponseView;
 import core.context.lifecycle.ContextBootstrap;
 import core.context.registry.ContextRegistry;
 import core.context.registry.ContextViewFactory;
@@ -73,11 +74,11 @@ public class Phase3ContextTest {
     @Test
     void test_ContextViewFactory_Resolve() {
         // Register DummyContext with ContextRegistry
-        ContextRegistry.register(DummyContext.class, ContextNamespace.ROOT);
+        ContextRegistry.register(DummyContext.class, ContextNamespace.API);
 
         // Register a dummy view supplier for DummyContext
         DummyContext dummyInstance = new DummyContext();
-        ContextViewFactory.register(DummyContext.class, () -> dummyInstance);
+        ContextViewFactory.register(DummyContext.class, DefaultApiResponseView::new);
 
         //Create ContextView for DummyContext
         ContextView view = ContextViewFactory.createView(DummyContext.class);

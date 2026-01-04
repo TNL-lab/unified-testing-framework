@@ -49,7 +49,7 @@ public class TestContextUsageTest {
         context.put(contextKey, "token_123");
         // Verify that the context is cleared
         assertEquals(true, context.contains(contextKey));
-        
+
         // Clear the context
         context.clear();
         // Verify that the context is cleared

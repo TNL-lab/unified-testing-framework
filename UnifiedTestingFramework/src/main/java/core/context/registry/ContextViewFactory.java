@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import core.context.ContextException;
+import core.context.support.ContextPreconditions;
 import core.context.view.ContextView;
 
 /**
@@ -43,9 +43,11 @@ public final class ContextViewFactory {
      * @throws ContextException if the context type or view factory function is null
      */
     public static <V extends ContextView> void register(Class<?> contextType, Function<Object, V> viewFactory) {
-        // Validate inputs
-        contextType = validate(contextType, "Context type must not be null");
-        viewFactory = validate(viewFactory, "View factory function must not be null");
+        // Fail fast if context type is null
+        ContextPreconditions.requireNonNull(contextType, "Context type must not be null");
+
+        // Fail fast if view factory function is null
+        ContextPreconditions.requireNonNull(viewFactory, "View factory function must not be null");
 
         // Store the mapping in the registry
         VIEW_REGISTRY.put(contextType, viewFactory);
@@ -60,14 +62,14 @@ public final class ContextViewFactory {
      */
     @SuppressWarnings("unchecked")
     public static <V extends ContextView> V createView(Object context) {
-        // Context instance must not be null
-        context = validate(context, "Context instance must not be null");
+        // Fail fast if context instance is null
+        ContextPreconditions.requireNonNull(context, "Context instance must not be null");
 
         // Lookup factory function based on context class
         Function<Object, ? extends ContextView> func = VIEW_REGISTRY.get(context.getClass());
 
         // If no creator found, throw exception
-        func = validate(func, "No view registered for context: " + context.getClass().getName());
+        ContextPreconditions.requireNonNull(func, "No view registered for context: " + context.getClass().getName());
 
         //Apply factory function to context instance to create view
         return (V) func.apply(context);
@@ -95,11 +97,11 @@ public final class ContextViewFactory {
      * @throws ContextException if the context type or view factory function is null
      */
     public static void register(Class<?> contextType, BiFunction<Object, Class<? extends ContextView>, ? extends ContextView> resolver) {
-        // Verify context type
-        contextType = validate(contextType, "Context type must not be null");
+        // Fail fast if context type is null
+        ContextPreconditions.requireNonNull(contextType, "Context type must not be null");
 
-        // Verify resolver function must be provided
-        resolver = validate(resolver, "View contract resolver must not be null");
+        // Fail fast if resolver function is null
+        ContextPreconditions.requireNonNull(resolver, "View contract resolver must not be null");
 
         // Store resolver for this Context type
         VIEW_CONTRACT_REGISTRY.put(contextType, resolver);
@@ -114,17 +116,17 @@ public final class ContextViewFactory {
      */
     @SuppressWarnings("unchecked")
     public static <V extends ContextView> V createView(Object context, Class<V> viewType) {
-        // Context instance must not be null
-        context = validate(context, "Context instance must not be null");
+        // Fail fast if context instance is null
+        ContextPreconditions.requireNonNull(context, "Context instance must not be null");
 
-        // View contract type must be specified
-        viewType= validate(viewType, "View type must not be null");
+        // Fail fast if view type is null
+        ContextPreconditions.requireNonNull(viewType, "View type must not be null");
 
         // Lookup resolver function based on context class and view type
         BiFunction<Object, Class<? extends ContextView> ,? extends ContextView> resolver = VIEW_CONTRACT_REGISTRY.get(context.getClass());
 
         // Fail fast if no resolver is registered
-        resolver = validate(resolver, "No view contract registered for context: " + context.getClass().getName());
+        ContextPreconditions.requireNonNull(resolver, "No view contract registered for context: " + context.getClass().getName());
 
         // Resolve and return concrete ContextView
         return (V) resolver.apply(context, viewType);
@@ -140,25 +142,5 @@ public final class ContextViewFactory {
     public static void clear() {
         VIEW_REGISTRY.clear();
         VIEW_CONTRACT_REGISTRY.clear();
-    }
-
-    /**
-     * Requires a non-null value with the given error message.
-     *
-     * Throws ContextException if the value is null.
-     *
-     * @param value the value to require
-     * @param errorMessage the error message to use if the value is null
-     * @return the value if not null
-     * @throws ContextException if the value is null
-     */
-    private static<T> T validate(T value, String message) {
-        // Fail fast if missing
-        if (value == null) {
-            throw new ContextException(message);
-        }
-
-        // Return the value
-        return value;
     }
 }

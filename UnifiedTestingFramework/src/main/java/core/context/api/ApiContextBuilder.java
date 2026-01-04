@@ -1,7 +1,7 @@
 package core.context.api;
 
-import core.context.ContextException;
 import core.context.adapter.ResponseAdapter;
+import core.context.support.ContextPreconditions;
 
 /**
  * Builder responsible for assembling ApiContext.
@@ -41,9 +41,7 @@ public class ApiContextBuilder {
      */
     public ApiContext build() {
         // Fail fast if context is misconfigured
-        if (responseAdapter == null) {
-            throw new ContextException( "ResponseAdapter must be provided before building ApiContext");
-        }
+        ContextPreconditions.requireNonNull(responseAdapter, "ResponseAdapter must be provided before building ApiContext");
 
         //Return new DefaultApiContext
         return new DefaultApiContext(responseAdapter);

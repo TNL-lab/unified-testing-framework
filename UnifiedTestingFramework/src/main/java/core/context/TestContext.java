@@ -1,6 +1,7 @@
 package core.context;
 
 import core.context.registry.ContextRegistry;
+import core.context.support.ContextPreconditions;
 
 /**
  * Runtime container for all context data during a test execution.
@@ -53,7 +54,7 @@ public final class TestContext {
      */
     public <T> void putRequired(ContextKey<T> key, T value) {
         // Fail fast if missing
-        value = requireValue(value, "Context value must not be null for key: " + key.getName());
+        ContextPreconditions.requireNonNull(value, "Context value must not be null for key: " + key.getName());
 
         // Store the value with the context key
         put(key, value);
@@ -80,7 +81,7 @@ public final class TestContext {
      *
      * @param key The context key
      * @param <T> The type of the value
-     * @return The stored value, or null if not found 
+     * @return The stored value, or null if not found
      */
     public <T> T get(ContextKey<T> key) {
         // Delegate retrieval to ContextStore
@@ -136,8 +137,8 @@ public final class TestContext {
         // Retrieve value
         T value = get(key);
 
-        // Fail fast if missing
-        value = requireValue(value, "Required context key missing: " + key);
+        // Fail fast if value missing
+        ContextPreconditions.requireNonNull(value, "Required context key missing: " + key);
 
         // Return the value
         return value;
@@ -152,7 +153,7 @@ public final class TestContext {
         T value = get(clazz);
 
         // Fail fast if missing
-        value = requireValue(value, "Required context not found for type: " + clazz.getName());
+        ContextPreconditions.requireNonNull(value, "Required context not found for type: " + clazz.getName());
 
         // Return the value
         return value;
@@ -168,25 +169,5 @@ public final class TestContext {
     @SuppressWarnings("unchecked")
     private <T> ContextKey<T> resolveKey(Class<?> clazz) {
         return ContextRegistry.keyOf((Class<T>)clazz);
-    }
-
-    /**
-     * Requires a non-null value with the given error message.
-     *
-     * Throws ContextException if the value is null.
-     *
-     * @param value the value to require
-     * @param errorMessage the error message to use if the value is null
-     * @return the value if not null
-     * @throws ContextException if the value is null
-     */
-    private <T> T requireValue(T value, String errorMessage) {
-        // Fail fast if missing
-        if (value == null) {
-            throw new ContextException(errorMessage);
-        }
-
-        // Return the value
-        return value;
     }
 }
