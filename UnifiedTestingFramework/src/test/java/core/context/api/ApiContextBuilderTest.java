@@ -1,127 +1,84 @@
 package core.context.api;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 
 import core.context.ContextException;
 import core.context.TestContext;
 import core.context.api.adapter.ApiResponseAdapter;
 import core.context.api.adapter.RestAssuredAdapter;
-import core.utils.LogUtil;
-import io.restassured.RestAssured;
+import io.restassured.http.Header;
+import io.restassured.http.Headers;
 import io.restassured.response.Response;
 
 /**
-  * - Builder fail fast
-  * - Context only stores the ResponseAdapter without performing any transformation
-  */
+ * - Builder fail fast
+ * - Context only stores the ResponseAdapter without performing any
+ * transformation
+ */
 @ExtendWith(Phase5AllTestsSuite.class) // Use Phase5AllTestsSuite to initialize TestContext
 public class ApiContextBuilderTest {
+  /**
+   * Test that ApiContextBuilder fails to build when ResponseAdapter is missing.
+   *
+   * Verify that ContextException is thrown with a message containing
+   * "ResponseAdapter".
+   */
+  @Test
+  void build_shouldFail_whenResponseAdapterMissing() {
+    // Create ApiContextBuilder: assemble ApiContext from normalized response
+    ApiContextBuilder builder = new ApiContextBuilder();
 
-    /**
-     * Sets up the test class for ApiContextBuilderTest.
-     *
-     * Logs a message indicating the start of the test class.
-     */
-    @BeforeClass
-    public void setUp() {
-        LogUtil.info("Starting Phase 5 - Test for ApiContextBuilder");
-    }
+    // ApiContextBuilder should fail to build because ApiResponseAdapter is missing
+    ContextException exception = assertThrows(ContextException.class, builder::build);
 
-    /**
-     * Cleans up the test class for ApiContextBuilderTest.
-     *
-     * Logs a message indicating the end of the test class.
-     */
-    @AfterClass
-    public void tearDown() {
-        LogUtil.info("Ending Phase 5 - Test for ApiContextBuilder");
-    }
+    // Verify exception message
+    assertTrue(exception.getMessage().contains("ApiResponseAdapter"));
+  }
 
-    /**
-     * Test that ApiContextBuilder fails to build when ResponseAdapter is missing.
-     *
-     * Verify that ContextException is thrown with a message containing "ResponseAdapter".
-     */
-    @Test
-    void build_shouldFail_whenResponseAdapterMissing() {
-        // HTTP Client (RestAssured) → raw tool-specific response
-        Response response = RestAssured.given()
-        .baseUri("https://httpbin.org")
-        .when()
-        .get("/status/200");
+  /**
+   * Tests that ApiContextBuilder creates an ApiContext when ResponseAdapter is
+   * provided.
+   *
+   * Verifies all the expected properties of the created ApiContext.
+   */
+  @Test
+  void build_shouldCreateApiContext_whenResponseAdapterProvide() {
+    Headers headers = new Headers(new Header("Set-Cookie", "A=1"), new Header("Set-Cookie", "B=1"));
 
-        // Convert RestAssuredResponse into ResponseAdapter
-        ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
+    // HTTP Client (RestAssured) → raw tool-specific response
+    Response response = Phase5AllTestsSuite.buildRestAssuredResponse(200, "Hello World", headers);
 
-        // Create ApiContextBuilder: assemble ApiContext from normalized response
-        ApiContextBuilder builder = new ApiContextBuilder();
+    // Convert RestAssuredResponse into ResponseAdapter
+    ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
 
-        // ApiContextBuilder should fail to build because ResponseAdapter is missing
-        ContextException exception = assertThrows(ContextException.class,builder::build);
+    // Build ApiContext from normalized response
+    ApiContext apiContext = new ApiContextBuilder().withResponseAdapter(adapter).build();
 
-        // Verify exception message
-        assertTrue(exception.getMessage().contains("ResponseAdapter"));
-    }
+    assertNotNull(apiContext, " ApiContext should not be null");
+    assertSame(adapter, apiContext.response(), "Adapter should be stored correctly");
 
-    /**
-     * Tests that ApiContextBuilder creates an ApiContext when ResponseAdapter is provided.
-     *
-     * Verifies all the expected properties of the created ApiContext.
-     */
-    @Test
-    void build_shouldCreateApiContext_whenResponseAdapterProvide() {
-        // HTTP Client (RestAssured) → raw tool-specific response
-        Response response = RestAssured.given()
-        .baseUri("https://httpbin.org")
-        .when()
-        .get("/status/200");
+    // TestContext → store ApiContext for current test lifecycle
+    TestContext testContext = Phase5AllTestsSuite.getContextStatic();
+    testContext.put(ApiContext.class, apiContext);
 
-        // Convert RestAssuredResponse into ResponseAdapter
-        ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
+    // Retrieve ApiContext from TestContext
+    ApiContext retrieveDefaultApiContext = testContext.get(ApiContext.class);
 
-        // Create ApiContextBuilder: assemble ApiContext from normalized response
-        ApiContextBuilder builder = new ApiContextBuilder();
+    assertNotNull(retrieveDefaultApiContext, "Retrieved ApiContext should not be null");
+    assertSame(
+        adapter,
+        retrieveDefaultApiContext.response(),
+        "Adapter should match after retrieval of ApiContext from TestContext");
 
-        // DefaultApiContext → hold API execution state & normalized response
-        ApiContext apiContext = builder.withResponseAdapter(adapter).build();
-
-        // Verify ApiContext is not null
-        assertNotNull(apiContext);
-
-        // Verify ResponseAdapter of ApiContext is same as ApiResponseAdapter after nomalization
-        assertSame(adapter, apiContext.response(), "Adapter should be stored correctly");
-
-        // TestContext → store ApiContext for current test lifecycle
-        TestContext testContext = Phase5AllTestsSuite.getContextStatic();
-
-        // Store ApiContext in TestContext
-        testContext.put(ApiContext.class, apiContext);
-
-        // Retrieve ApiContext from TestContext
-        ApiContext retrieveDefaultApiContext = testContext.get(ApiContext.class);
-
-        // Verify retrieved ApiContext is not null
-        assertNotNull(retrieveDefaultApiContext, "Retrieved ApiContext should not be null");
-
-        // Verify ResponseAdapter of ApiContext is same as ResponseAdapter after nomalization
-        assertEquals(
-            adapter,
-            retrieveDefaultApiContext.response(),
-            "Adapter should match after retrieval of ApiContext from TestContext");
-
-        // Verify detail of ResponseAdapter
-        // Verify body
-        assertNotNull(apiContext.response().body(), "Body of ResponseAdapter should not be null");
-
-        // Verify body
-        assertNotNull(apiContext.response().headers(), "Headers of ResponseAdapter should not be null");
-
-        // Verify statusCode of ResponseAdapter
-        assertEquals(200, apiContext.response().statusCode(), "Status code of ResponseAdapter should be 200");
-    }
+    assertNotNull(apiContext.response().body(), "Body of ResponseAdapter should not be null");
+    assertNotNull(apiContext.response().headers(), "Headers of ResponseAdapter should not be null");
+    assertEquals(200, apiContext.response().statusCode(), "Status code should be 200");
+  }
 }

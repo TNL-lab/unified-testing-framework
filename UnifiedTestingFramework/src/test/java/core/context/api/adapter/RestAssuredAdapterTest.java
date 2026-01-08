@@ -6,14 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 
-import api.enums.ApiContentType;
-import core.context.adapter.ResponseAdapter;
 import core.context.api.Phase5AllTestsSuite;
-import core.utils.LogUtil;
-import io.restassured.builder.ResponseBuilder;
+import io.restassured.http.Header;
+import io.restassured.http.Headers;
 import io.restassured.response.Response;
 
 /**
@@ -26,52 +22,54 @@ import io.restassured.response.Response;
  */
 @ExtendWith(Phase5AllTestsSuite.class)
 public class RestAssuredAdapterTest {
-    /**
-     * Sets up the test class for RestAssuredAdapterTest.
-     *
-     * Logs a message indicating the start of the test class.
-     */
-    @BeforeClass
-    public void setUp() {
-        LogUtil.info("Starting Phase 5 - Test for RestAssuredAdapter");
-    }
+  @Test
+  void adapt_shouldSuccess_whenRestAssuredResponseProvided() {
+    Headers headers = new Headers(new Header("Content-Type", "application/json"), new Header("X-Test", "true"));
 
-    /**
-     * Cleans up the test class for RestAssuredAdapterTest.
-     *
-     * Logs a message indicating the end of the test class.
-     */
-    @AfterClass
-    public void tearDown() {
-        LogUtil.info("Ending Phase 5 - Test for RestAssuredAdapter");
-    }
+    // Build RestAssured Response
+    Response response = Phase5AllTestsSuite.buildRestAssuredResponse(201, "{\"id\":1,\"name\":\"John\"}", headers);
 
-    @Test
-    void adapt_shouldSuccess_whenRestAssuredResponseProvided() {
-        // Build RestAssured Response
-        Response response = new ResponseBuilder().setStatusCode(201)
-        .setBody("{\"id\":1,\"name\":\"John\"}")
-        .setContentType(ApiContentType.JSON.value())
-        .setHeader("X-Test", "true")
-        .build();
+    // Raw Tool Adapter (RestAssuredAdapter) → ApiContext-neutral ApiResponseAdapter
+    ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
 
-        // Raw Tool Adapter (RestAssuredAdapter) → ApiContext-neutral ApiResponseAdapter
-        ResponseAdapter adapter = RestAssuredAdapter.adapt(response);
+    // Test Layer → assert only on view (tool & context agnostic)
+    // Verify ApiResponseAdapter is not null
+    assertNotNull(adapter);
 
-        // Test Layer → assert only on view (tool & context agnostic)
-        // Verify ApiResponseAdapter is not null
-        assertNotNull(adapter);
+    // Verify raw response is same as raw tool-specific response
+    assertSame(
+        response,
+        adapter.raw(),
+        "ApiResponseAdapter raw response should be same as raw tool-specific response");
 
-        // Verify raw response is same as raw tool-specific response
-        assertSame(
-            response,
-            adapter.raw(),
-            "ApiResponseAdapter raw response should be same as raw tool-specific response"
-        );
+    assertEquals(201, adapter.statusCode());
+    assertEquals("{\"id\":1,\"name\":\"John\"}", adapter.body());
+    assertEquals("application/json", adapter.headers().get("Content-Type"));
+    assertEquals("true", adapter.headers().get("X-Test"));
+  }
 
-        // Verify filelds of ApiResponseAdapter
-        assertEquals(201, adapter.statusCode());
-        assertEquals("{\"id\":1,\"name\":\"John\"}", adapter.body());
-        assertEquals("true", adapter.headers().get("X-Test"));
-    }
+  @Test
+  void adapt_shouldUseFirstHeaderValue_whenDuplicateHeadersExist() {
+    Headers headers = new Headers(new Header("Set-Cookie", "A=1"), new Header("Set-Cookie", "B=1"));
+
+    // Build RestAssured Response
+    Response response = Phase5AllTestsSuite.buildRestAssuredResponse(201, "{\"id\":1,\"name\":\"John\"}", headers);
+
+    // Raw Tool Adapter (RestAssuredAdapter) → ApiContext-neutral ApiResponseAdapter
+    ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
+
+    // Test Layer → assert only on view (tool & context agnostic)
+    // Verify ApiResponseAdapter is not null
+    assertNotNull(adapter);
+
+    // Verify raw response is same as raw tool-specific response
+    assertSame(
+        response,
+        adapter.raw(),
+        "ApiResponseAdapter raw response should be same as raw tool-specific response");
+
+    assertEquals(201, adapter.statusCode());
+    assertEquals("{\"id\":1,\"name\":\"John\"}", adapter.body());
+    assertEquals("A=1", adapter.headers().get("Set-Cookie"));
+  }
 }

@@ -1,13 +1,12 @@
 package core.context.api;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 
-import api.enums.ApiContentType;
 import core.context.TestContext;
 import core.context.api.adapter.ApiResponseAdapter;
 import core.context.api.adapter.OkHttpAdapter;
@@ -16,246 +15,222 @@ import core.context.api.view.ApiResponseView;
 import core.context.api.view.RawJsonView;
 import core.context.api.view.SnapshotView;
 import core.context.registry.ContextViewFactory;
-import core.utils.LogUtil;
-import io.restassured.RestAssured;
-import io.restassured.builder.ResponseBuilder;
+import io.restassured.http.Header;
 import io.restassured.response.Response;
+import okhttp3.Headers;
 import okhttp3.MediaType;
-import okhttp3.Protocol;
-import okhttp3.Request;
 import okhttp3.ResponseBody;
 
 @ExtendWith(Phase5AllTestsSuite.class) // Use Phase5AllTestsSuite as a JUnit5 extension
 public class FullApiFlowTest {
-    /**
-     * Sets up the test class
-     *
-     * Logs a message indicating the start of the test class.
-     */
-    @BeforeClass
-    public void setUp() {
-        LogUtil.info("Starting Phase 5 - Test for full API context flow with RestAssured");
-    }
+  @Test
+  void fullApiFlow_shouldWorkEndToEnd_withRestAssuredAndDefaultView() {
+    // ==============================================================
+    // (1) REQUEST & RESPONSE NORMALIZATION
+    // HTTP Client → Tool Adapter → ApiResponseAdapter
+    // ==============================================================
 
-    /**
-     * Cleans up the test class
-     *
-     * Logs a message indicating the end of the test class.
-     */
-    @AfterClass
-    public void tearDown() {
-        LogUtil.info("Ending Phase 5 - Test for full API context flow with RestAssured");
-    }
+    io.restassured.http.Headers headers = new io.restassured.http.Headers(
+        new Header("Content-Type", "application/json"), new Header("X-Test", "true"));
 
-    @Test
-    void fullApiFlow_shouldWorkEndToEnd_withRestAssuredAndDefaultView() {
-        // HTTP Client (RestAssured) → raw tool-specific response
-        Response response = RestAssured.given()
-            .baseUri("https://httpbin.org")
-            .when()
-            .get("/status/200");
+    // Build RestAssured Response
+    Response response = Phase5AllTestsSuite.buildRestAssuredResponse(200, "{\"id\":1,\"name\":\"John\"}", headers);
 
-        //Raw Tool Adapter (RestAssuredAdapter) → ApiContext-neutral ApiResponseAdapter
-        ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
+    // Tool Adapter (RestAssuredAdapter) → Api-neutral ApiResponseAdapter
+    ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
 
-        // ApiContextBuilder → assemble ApiContext from normalized response
-        ApiContextBuilder builder = new ApiContextBuilder();
+    // ==============================================================
+    // (2) CONTEXT CREATION & LIFECYCLE
+    // Builder → Context → Store in TestContext
+    // ==============================================================
 
-        // DefaultApiContext → hold API execution state & normalized response
-        ApiContext context = builder.withResponseAdapter(adapter).build();
+    // Build ApiContext
+    ApiContext context = new ApiContextBuilder().withResponseAdapter(adapter).build();
 
-        // TestContext → store ApiContext for current test lifecycle
-        TestContext testContext = Phase5AllTestsSuite.getContextStatic();
-        testContext.put(ApiContext.class, context);
+    // TestContext → store ApiContext for current test lifecycle
+    TestContext testContext = Phase5AllTestsSuite.getContextStatic();
+    testContext.put(ApiContext.class, context);
 
-        // ContextViewFactory / ApiContextModule → ApiContext → assertion-friendly ApiResponseView
-        ApiResponseView view = ContextViewFactory.createView(context);
+    // ==============================================================
+    // (3) VIEW RESOLUTION
+    // Context → View Factory → View
+    // ==============================================================
 
-        // Test Layer → assert only on view (tool & context agnostic)
-        assertNotNull(view);
-        assertEquals(200, view.statusCode());
-        assertTrue(view.isSuccess());
-    }
+    // Get context from TestContext
+    ApiContext storedContext = testContext.get(ApiContext.class);
 
-    @Test
-    void fullApiFlow_shouldWorkEndToEnd_withRestAssuredAndSpecializedView() {
-        // HTTP Client (RestAssured) → raw tool-specific response
-        Response response = new ResponseBuilder().setStatusCode(201)
-        .setBody("{\"id\":1,\"name\":\"John\"}")
-        .setContentType(ApiContentType.JSON.value())
-        .setHeader("X-Test", "true")
-        .build();
+    // Resolve default ApiResponseView
+    ApiResponseView view = ContextViewFactory.createView(storedContext);
 
-        //Raw Tool Adapter (RestAssuredAdapter) → ApiContext-neutral ApiResponseAdapter
-        ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
+    // ==============================================================
+    // (4) VALIDATION / ASSERTION
+    // Test Layer → assert only on view (tool & context agnostic)
+    // ==============================================================
 
-        // ApiContextBuilder → assemble ApiContext from normalized response
-        ApiContextBuilder builder = new ApiContextBuilder();
+    assertNotNull(view);
+    assertEquals(200, view.statusCode());
+    assertTrue(view.isSuccess());
+  }
 
-        // DefaultApiContext → hold API execution state & normalized response
-        ApiContext context = builder.withResponseAdapter(adapter).build();
+  @Test
+  void fullApiFlow_shouldWorkEndToEnd_withRestAssuredAndSpecializedView() {
+    // ==============================================================
+    // (1) REQUEST & RESPONSE NORMALIZATION
+    // HTTP Client → Tool Adapter → ApiResponseAdapter
+    // ==============================================================
 
-        // TestContext → store ApiContext for current test lifecycle
-        TestContext testContext = Phase5AllTestsSuite.getContextStatic();
-        testContext.put(ApiContext.class, context);
+    io.restassured.http.Headers headers = new io.restassured.http.Headers(
+        new Header("Content-Type", "application/json"), new Header("X-Test", "true"));
 
-        // ContextViewFactory / ApiContextModule → ApiContext → assertion-friendly ApiResponseView
-        RawJsonView view = ContextViewFactory.createView(context, RawJsonView.class);
+    // Build RestAssured Response
+    Response response = Phase5AllTestsSuite.buildRestAssuredResponse(201, "{\"id\":1,\"name\":\"John\"}", headers);
 
-        // Test Layer → assert only on view (tool & context agnostic)
-        // Verify RawJsonView is not null
-        assertNotNull(view, "RawJsonView should not be null");
+    // Raw Tool Adapter (RestAssuredAdapter) → Api-neutral ApiResponseAdapter
+    ApiResponseAdapter adapter = RestAssuredAdapter.adapt(response);
 
-        // Verify RawJsonView json is not null
-        assertNotNull(view.json(), "RawJsonView json should not be null");
+    // ==============================================================
+    // (2) CONTEXT CREATION & LIFECYCLE
+    // Builder → Context → Store in TestContext
+    // ==============================================================
 
-        // Verify extended fields from ApiResponseView
-        assertEquals(
-            201,
-            view.statusCode(),
-            "Status Code should be 201"
-        );
-        assertEquals(
-            "{\"id\":1,\"name\":\"John\"}",
-            view.body(),
-            "Body should contain expected value"
-        );
-        assertTrue(view.isSuccess());
+    // Build ApiContext
+    ApiContext context = new ApiContextBuilder().withResponseAdapter(adapter).build();
 
-        // Verify SnapshotView fields vs ApiResponseAdapter
-        assertEquals(adapter.body(), view.body());
-    }
+    // TestContext → store ApiContext for current test lifecycle
+    TestContext testContext = Phase5AllTestsSuite.getContextStatic();
+    testContext.put(ApiContext.class, context);
 
-    @Test
-    void fullApiFlow_shouldWorkEndToEnd_withOkHttpAndDefaultView() {
-        // OkHttp Request
-        Request request = new Request.Builder()
-                .url("https://example.com/test")
-                .build();
+    // ==============================================================
+    // (3) VIEW RESOLUTION
+    // Context → View Factory → View
+    // ==============================================================
 
-        // OkHttp Response Body
-        ResponseBody body = ResponseBody.create(
-            "{\"success\":true}",
-            MediaType.parse("application/json"));
+    // Get context from TestContext
+    ApiContext storedContext = testContext.get(ApiContext.class);
 
-        // HTTP Client (OkHttp) → raw tool-specific response
-        okhttp3.Response response = new okhttp3.Response.Builder()
-                .request(request)
-                .protocol(Protocol.HTTP_1_1)
-                .code(204)
-                .message("No Content")
-                .body(body)
-                .addHeader("X-Source", "okhttp")
-                .build();
+    // Resolve specialized views
+    RawJsonView view = ContextViewFactory.createView(storedContext, RawJsonView.class);
 
-        //Raw Tool Adapter (OkHttpAdapter) → ApiContext-neutral ApiResponseAdapter
-        ApiResponseAdapter adapter = OkHttpAdapter.adapt(response);
+    // ==============================================================
+    // (4) VALIDATION / ASSERTION
+    // Test Layer → assert only on view (tool & context agnostic)
+    // ==============================================================
+    assertNotNull(view, "RawJsonView should not be null");
+    assertNotNull(view.json(), "RawJsonView json should not be null");
+    assertEquals(201, view.statusCode(), "Status Code should be 201");
+    assertEquals("{\"id\":1,\"name\":\"John\"}", view.body(), "Body should contain expected value");
+    assertTrue(view.isSuccess());
+  }
 
-        // ApiContextBuilder → assemble ApiContext from normalized response
-        ApiContextBuilder builder = new ApiContextBuilder();
+  @Test
+  void fullApiFlow_shouldWorkEndToEnd_withOkHttpAndDefaultView() {
 
-        // DefaultApiContext → hold API execution state & normalized response
-        ApiContext context = builder.withResponseAdapter(adapter).build();
+    // ==============================================================
+    // (1) REQUEST & RESPONSE NORMALIZATION
+    // HTTP Client → Tool Adapter → ApiResponseAdapter
+    // ==============================================================
 
-        // TestContext → store ApiContext for current test lifecycle
-        TestContext testContext = Phase5AllTestsSuite.getContextStatic();
-        testContext.put(ApiContext.class, context);
+    Headers headers = new Headers.Builder().add("X-Source", "okhttp").build();
 
-        // ContextViewFactory / ApiContextModule → ApiContext → assertion-friendly ApiResponseView
-        ApiResponseView view = ContextViewFactory.createView(context);
+    // OkHttp Response Body
+    ResponseBody body = ResponseBody.create("{\"success\":true}", MediaType.parse("application/json"));
 
-        // Test Layer → assert only on view (tool & context agnostic)
-        //  Verify SnapshotView is not null
-        assertNotNull(view, " ApiResponseView must not be null");
+    // HTTP Client (OkHttp) → raw tool-specific response
+    okhttp3.Response response = Phase5AllTestsSuite.buildOkHttpResponse("https://example.com/test", 204, headers, body);
 
-        // Verify extended fields from ApiResponseView
-        assertEquals(
-            204,
-            view.statusCode(),
-            "Status Code should be 204"
-        );
-        assertEquals(
-            "{\"success\":true}",
-            view.body(),
-            "Body should contain expected value"
-        );
-        assertTrue(view.isSuccess());
+    // Tool Adapter (OkHttpAdapter) → Api-neutral ApiResponseAdapter
+    ApiResponseAdapter adapter = OkHttpAdapter.adapt(response);
 
-        // Verify ApiResponseView fields vs ApiResponseAdapter
-        assertEquals(
-            adapter.body(),
-            view.body(),
-            " ApiResponseView body should be same as ApiResponseAdapter body"
-        );
-        assertEquals("okhttp", adapter.headers().get("x-source"));
-    }
+    // ==============================================================
+    // (2) CONTEXT CREATION & LIFECYCLE
+    // Builder → Context → Store in TestContext
+    // ==============================================================
 
-    @Test
-    void fullApiFlow_shouldWorkEndToEnd_withOkHttpAndSpecializedView() {
-        // OkHttp Request
-        Request request = new Request.Builder()
-                .url("https://example.com/test")
-                .build();
+    // Build ApiContext
+    ApiContext context = new ApiContextBuilder().withResponseAdapter(adapter).build();
 
-        // OkHttp Response Body
-        ResponseBody body = ResponseBody.create(
-            "{\"success\":true}",
-            MediaType.parse("application/json"));
+    // TestContext → store ApiContext for current test lifecycle
+    TestContext testContext = Phase5AllTestsSuite.getContextStatic();
+    testContext.put(ApiContext.class, context);
 
-        // HTTP Client (OkHttp) → raw tool-specific response
-        okhttp3.Response response = new okhttp3.Response.Builder()
-                .request(request)
-                .protocol(Protocol.HTTP_1_1)
-                .code(204)
-                .message("No Content")
-                .body(body)
-                .addHeader("X-Source", "okhttp")
-                .build();
+    // ==============================================================
+    // (3) VIEW RESOLUTION
+    // Context → View Factory → View
+    // ==============================================================
 
-        //Raw Tool Adapter (RestAssuredAdapter) → ApiContext-neutral ApiResponseAdapter
-        ApiResponseAdapter adapter = OkHttpAdapter.adapt(response);
+    // Get context from TestContext
+    ApiContext storedContext = testContext.get(ApiContext.class);
 
-        // ApiContextBuilder → assemble ApiContext from normalized response
-        ApiContextBuilder builder = new ApiContextBuilder();
+    // Resolve default ApiResponseView
+    ApiResponseView view = ContextViewFactory.createView(storedContext);
 
-        // DefaultApiContext → hold API execution state & normalized response
-        ApiContext context = builder.withResponseAdapter(adapter).build();
+    // ==============================================================
+    // (4) VALIDATION / ASSERTION
+    // Test Layer → assert only on view (tool & context agnostic)
+    // ==============================================================
 
-        // TestContext → store ApiContext for current test lifecycle
-        TestContext testContext = Phase5AllTestsSuite.getContextStatic();
-        testContext.put(ApiContext.class, context);
+    assertNotNull(view, " ApiResponseView must not be null");
+    assertEquals(204, view.statusCode(), "Status Code should be 204");
+    assertEquals("{\"success\":true}", view.body(), "Body should contain expected value");
+    assertTrue(view.isSuccess());
+    assertEquals("okhttp", adapter.headers().get("x-source"));
+  }
 
-        // ContextViewFactory / ApiContextModule → ApiContext → assertion-friendly specilialized view
-        SnapshotView view = ContextViewFactory.createView(context, SnapshotView.class);
+  @Test
+  void fullApiFlow_shouldWorkEndToEnd_withOkHttpAndSpecializedView() {
 
-        // Test Layer → assert only on view (tool & context agnostic)
-        //  Verify SnapshotView is not null
-        assertNotNull(
-            view,
-            " SnapshotView is null, no snapshot available"
-        );
+    // ==============================================================
+    // (1) REQUEST & RESPONSE NORMALIZATION
+    // HTTP Client → Tool Adapter → ApiResponseAdapter
+    // ==============================================================
 
-        // Verify Snapshot is not null and matches expected snapshot
-        assertNotNull(
-            view.snapshot(),
-            " Snapshot should not be null"
-        );
-        String expectedSnapshot = "Status: " + view.statusCode() + ", Body: " + view.body();
-        assertEquals(
-            expectedSnapshot,
-            view.snapshot(),
-            " Snapshot does not match expected snapshot"
-        );
+    Headers headers = new Headers.Builder().add("X-Source", "okhttp").build();
 
-        // Verify extended fields from ApiResponseView
-        assertEquals(
-            204,
-            view.statusCode(),
-            "Status Code should be 204");
-        assertEquals(
-            "{\"success\":true}",
-            view.body(),
-            "Body should contain expected value");
-        assertTrue(view.isSuccess());
-    }
+    // OkHttp Response Body
+    ResponseBody body = ResponseBody.create("{\"success\":true}", MediaType.parse("application/json"));
+
+    // HTTP Client (OkHttp) → raw tool-specific response
+    okhttp3.Response response = Phase5AllTestsSuite.buildOkHttpResponse("https://example.com/test", 204, headers, body);
+
+    // Raw Tool Adapter (RestAssuredAdapter) → Api-neutral ApiResponseAdapter
+    ApiResponseAdapter adapter = OkHttpAdapter.adapt(response);
+
+    // ==============================================================
+    // (2) CONTEXT CREATION & LIFECYCLE
+    // Builder → Context → Store in TestContext
+    // ==============================================================
+
+    // Build ApiContext
+    ApiContext context = new ApiContextBuilder().withResponseAdapter(adapter).build();
+
+    // TestContext → store ApiContext for current test lifecycle
+    TestContext testContext = Phase5AllTestsSuite.getContextStatic();
+    testContext.put(ApiContext.class, context);
+
+    // ==============================================================
+    // (3) VIEW RESOLUTION
+    // Context → View Factory → View
+    // ==============================================================
+
+    // Get context from TestContext
+    ApiContext storedContext = testContext.get(ApiContext.class);
+
+    // Resolve SnapshotView
+    SnapshotView view = ContextViewFactory.createView(storedContext, SnapshotView.class);
+
+    // ==============================================================
+    // (4) VALIDATION / ASSERTION
+    // Test Layer → assert only on view (tool & context agnostic)
+    // ==============================================================
+
+    assertNotNull(view, " SnapshotView is null, no snapshot available");
+    assertNotNull(view.snapshot(), " Snapshot should not be null");
+
+    String expectedSnapshot = "Status: " + view.statusCode() + ", Body: " + view.body();
+    assertEquals(expectedSnapshot, view.snapshot(), " Snapshot does not match expected snapshot");
+
+    assertEquals(204, view.statusCode(), "Status Code should be 204");
+    assertEquals("{\"success\":true}", view.body(), "Body should contain expected value");
+    assertTrue(view.isSuccess());
+  }
 }
