@@ -1,6 +1,6 @@
 package core.context.api;
 
-import core.context.adapter.ResponseAdapter;
+import core.context.api.adapter.ApiResponseAdapter;
 
 /**
  * API-specific context contract.
@@ -10,11 +10,13 @@ import core.context.adapter.ResponseAdapter;
  * - Exposes API-related data in a normalized way
  */
 public interface ApiContext {
-    /**
-     * Get the ResponseAdapter instance associated with this API context.
-     * The ResponseAdapter holds the HTTP response body and headers.
-     *
-     * @return the ResponseAdapter normalized API response adapter (tool-agnostic, read-only)t
-     */
-    ResponseAdapter response();
+  /**
+   * Get the API Response Adapter instance associated with this API context. The
+   * ApiResponseAdapter
+   * holds the HTTP response body and headers.
+   *
+   * @return the ApiResponseAdapter normalized API response adapter
+   *         (tool-agnostic, read-only)
+   */
+  ApiResponseAdapter response();
 }

@@ -7,7 +7,6 @@ import core.context.view.ContextView;
  *
  * Responsibilities:
  * - Assertion-friendly interface
- * - Decoupled from HTTP client
  * - Immutable / read-only
  * - Hide tools and adapter
  */
@@ -20,7 +19,7 @@ public interface ApiResponseView extends ContextView {
      */
     int statusCode();
 
-     /**
+    /**
      * Get the response body as a string.
      *
      */

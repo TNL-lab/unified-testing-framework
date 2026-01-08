@@ -1,5 +1,6 @@
 package core.context.api.view.impl;
 
+import core.context.api.ApiContext;
 import core.context.api.view.SnapshotView;
 
 /**
@@ -15,14 +16,13 @@ public class DefaultSnapshotView extends DefaultApiResponseView implements Snaps
     /**
      * Construct a DefaultSnapshotView instance
      *
-     * @param context  the DefaultApiContext instance
+     * @param context the ApiContext instance
      *
      */
-    public DefaultSnapshotView(Object context) {
+    public DefaultSnapshotView(ApiContext context) {
         // Reuse context handling from DefaultApiResponseView
         super(context);
     }
-
 
     /**
      * Gets a snapshot of the API response in a string format.

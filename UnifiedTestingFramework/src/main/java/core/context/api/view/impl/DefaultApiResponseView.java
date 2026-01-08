@@ -1,7 +1,6 @@
 package core.context.api.view.impl;
 
-import core.context.ContextException;
-import core.context.api.DefaultApiContext;
+import core.context.api.ApiContext;
 import core.context.api.view.ApiResponseView;
 
 /**
@@ -17,22 +16,15 @@ import core.context.api.view.ApiResponseView;
 public class DefaultApiResponseView implements ApiResponseView {
 
     // Hold reference to context instance to read data
-    private final DefaultApiContext context;
+    private final ApiContext context;
 
     /**
-     * Construct a new read-only view from a DefaultApiContext instance.
+     * Construct a new read-only view from a ApiContext instance.
      *
-     * @param context  the DefaultApiContext instance
-     * @throws ContextException if context is not a DefaultApiContext
+     * @param context  the ApiContext instance
      */
-    public DefaultApiResponseView(Object context) {
-        // Fail fast if context is misconfigured
-        if (!(context instanceof DefaultApiContext)) {
-            throw new ContextException("Context is expected to be of type DefaultApiContext");
-        }
-
-        // Context is expected to be DefaultApiContext
-        this.context = (DefaultApiContext) context;
+    public DefaultApiResponseView(ApiContext context) {
+        this.context = context;
     }
 
     /**

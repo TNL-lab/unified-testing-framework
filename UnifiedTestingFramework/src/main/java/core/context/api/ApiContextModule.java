@@ -15,7 +15,8 @@ import core.context.support.ContextPreconditions;
 import core.context.view.ContextView;
 
 /**
- * Module responsible for wiring API contexts and views into the core framework (Registry + ViewFactory).
+ * Module responsible for wiring API contexts and views into the core framework
+ * (Registry + ViewFactory).
  *
  * Responsibilities:
  * - Register API context types in ContextRegistry under API namespace
@@ -24,39 +25,42 @@ import core.context.view.ContextView;
  *
  */
 public final class ApiContextModule {
-    //Constructor to prevent instantiation
-    private ApiContextModule() {}
+    // Constructor to prevent instantiation
+    private ApiContextModule() {
+    }
 
     /**
      * Register API context in ContextRegistry under API namespace
      *
-     * This method is used to register both the ApiContext interface and its default implementation (DefaultApiContext)
+     * This method is used to register both the ApiContext interface and its default
+     * implementation (DefaultApiContext)
      */
     private static void registerContexts() {
         // Register ApiContext under API namespace
         ContextRegistry.register(
-            ApiContext.class,
-            ContextNamespace.API);
+                ApiContext.class,
+                ContextNamespace.API);
 
         // Register DefaultApiContext under API namespace
         ContextRegistry.register(
-            DefaultApiContext.class,
-            ContextNamespace.API);
+                DefaultApiContext.class,
+                ContextNamespace.API);
     }
 
     /**
      * Register API response views in ContextViewFactory
      *
-     * This method is used to register the default view implementations for API contexts.
+     * This method is used to register the default view implementations for API
+     * contexts.
      * It is intended to be called during test setup or framework bootstrap.
      */
     private static void registerViews() {
         // Register default view(DefaultApiResponseView) for DefaultApiContext.
         ContextViewFactory.register(
-            DefaultApiContext.class,
-            DefaultApiResponseView::new);
+                ApiContext.class,
+                ctx -> new DefaultApiResponseView((ApiContext) ctx));
 
-        //Register specialized API views for DefaultApiContext
+        // Register specialized API views for DefaultApiContext
         registerSpecializedViews();
     }
 
@@ -64,32 +68,32 @@ public final class ApiContextModule {
      * Register specialized API views for DefaultApiContext in ContextViewFactory
      *
      * Responsibilities:
-     * - Map view contracts (RawJsonView, SnapshotView) to their default implementations
+     * - Map view contracts (RawJsonView, SnapshotView) to their default
+     * implementations
      * - Centralize all specialized view wiring in a single place
      *
      */
     private static void registerSpecializedViews() {
-        // Map specialized view contracts (RawJsonView, SnapshotView) to their default implementations
-        Map<Class<? extends ContextView>,
-            Function<DefaultApiContext,  ? extends ContextView>> mapping =
-            Map.of(
+        // Map specialized view contracts (RawJsonView, SnapshotView) to their default
+        // implementations
+        Map<Class<? extends ContextView>, Function<ApiContext, ? extends ContextView>> mapping = Map.of(
                 RawJsonView.class, DefaultRawJsonView::new,
-                SnapshotView.class, DefaultSnapshotView::new
-            );
+                SnapshotView.class, DefaultSnapshotView::new);
 
-        // Register specialized API views(RawJsonView, SnapshotView) for DefaultApiContext
+        // Register specialized API views(RawJsonView, SnapshotView) for ApiContext
         ContextViewFactory.register(
-            DefaultApiContext.class,
-            (ctx, viewType) -> {
-                // Get the specialized API view factory from the mapping
-                Function<DefaultApiContext, ? extends ContextView> factory = mapping.get(viewType);
+                ApiContext.class,
+                (ctx, viewType) -> {
+                    // Get the specialized API view factory from the mapping
+                    Function<ApiContext, ? extends ContextView> factory = mapping.get(viewType);
 
-                // Fast fail if view type is not supported
-                ContextPreconditions.requireNonNull(factory, "Unsupported specialized API view type: " + viewType.getName());
+                    // Fast fail if view type is not supported
+                    ContextPreconditions.requireNonNull(factory,
+                            "Unsupported specialized API view type: " + viewType.getName());
 
-                // Apply the specialized API view factory
-                return factory.apply((DefaultApiContext) ctx);
-        });
+                    // Apply the specialized API view factory
+                    return factory.apply((ApiContext) ctx);
+                });
     }
 
     /**
@@ -103,6 +107,6 @@ public final class ApiContextModule {
 
         // Register API response views in ContextViewFactory
         registerViews();
-   }
+    }
 
 }

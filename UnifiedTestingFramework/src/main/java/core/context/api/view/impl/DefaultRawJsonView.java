@@ -1,5 +1,6 @@
 package core.context.api.view.impl;
 
+import core.context.api.ApiContext;
 import core.context.api.view.RawJsonView;
 
 /**
@@ -16,10 +17,10 @@ public class DefaultRawJsonView extends DefaultApiResponseView implements RawJso
     /**
      * Construct a DefaultRawJsonView instance
      *
-     * @param context  the DefaultApiContext instance
+     * @param context  the ApiContext instance
      *
      */
-    public DefaultRawJsonView(Object context) {
+    public DefaultRawJsonView(ApiContext context) {
         // Reuse context handling from DefaultApiResponseView
         super(context);
     }
